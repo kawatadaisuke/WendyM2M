@@ -82,6 +82,7 @@ def fit_m2m(w_init,z_init,vz_init,
             npop=1,
             smooth=None,st96smooth=False,
             output_wevolution=False,
+            output_zvzevolution = False, 
             fit_zsun=False,fit_omega=False,
             skipomega=10,delta_omega=0.3):
     """
@@ -113,6 +114,9 @@ def fit_m2m(w_init,z_init,vz_init,
        smooth= smoothing parameter alpha (None for no smoothing)
        st96smooth= (False) if True, smooth the constraints (Syer & Tremaine 1996), if False, smooth the objective function and its derivative (Dehnen 2000)
        output_wevolution= if set to an integer, return the time evolution of this many randomly selected weights
+       output_zvzevolution= if set to an integer, return the time evolution
+                of this many randomly selected weights only when
+                output_wevolution is True
     DATA DICTIONARIES:
        The data dictionaries have the following form:
            'type': type of measurement: 'dens', 'v2'
@@ -155,6 +159,10 @@ def fit_m2m(w_init,z_init,vz_init,
     if output_wevolution:
         rndindx= numpy.random.permutation(len(w_out))[:output_wevolution]
         wevol= numpy.zeros((output_wevolution,npop,nstep))
+        if output_zvzevolution:
+            zevol = numpy.zeros((output_wevolution,nstep))
+            vzevol = numpy.zeros((output_wevolution,nstep))
+        
     # Compute force of change for first iteration
     fcw, delta_m2m_new= \
         force_of_change_weights(w_out,zsun_m2m,z_init,vz_init,
@@ -282,6 +290,9 @@ def fit_m2m(w_init,z_init,vz_init,
         # Record random weights if requested
         if output_wevolution:
             wevol[:,:,ii]= w_out[rndindx]
+            if output_zvzevolution:
+                zevol[:, ii] = z_m2m[rndindx]
+                vzevol[:, ii] = vz_m2m[rndindx]
     out= (w_out,)
     if fit_zsun: out= out+(zsun_out,)
     if fit_omega:
@@ -290,6 +301,9 @@ def fit_m2m(w_init,z_init,vz_init,
     out= out+(numpy.array(Q_out),)
     if output_wevolution:
         out= out+(wevol,rndindx,)
+        if output_zvzevolution:
+            out = out+(zevol,)
+            out = out+(vzevol,)
     return out
 
 
