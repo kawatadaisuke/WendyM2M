@@ -3,6 +3,7 @@ import copy
 import numpy
 import wendy
 import hom2m
+from itertools import chain
 
 ########################## SELF-GRAVITATING DISK TOOLS ########################
 def sample_sech2(sigma,totmass,n=1):
@@ -46,11 +47,81 @@ def force_of_change_weights(w_m2m,zsun_m2m,z_m2m,vz_m2m,
         else:
             raise ValueError("'type' of measurement in data_dict not understood")
         fcw[:,data_dict['pops']]+= numpy.atleast_2d(tfcw).T
-        delta_m2m_new.extend(tdelta_m2m_new)
+        # delta_m2m_new.extend(tdelta_m2m_new)
+        delta_m2m_new.append(tdelta_m2m_new)
     # Add prior
 
     fcw+= hom2m.force_of_change_prior_weights(w_m2m,mu,w_prior,prior)
-    return (fcw,delta_m2m_new)
+    return (fcw, delta_m2m_new)
+
+# omega
+
+# rewind the orbit for one step.
+def rewind_zvz(z_init, vz_init, mass, omega, step):
+    grewind = wendy.nbody(
+      z_init, vz_init, mass, -step, omega=omega, approx=True, nleap=1)
+    z_rewind, vz_rewind = next(grewind)
+
+    return (z_rewind, vz_rewind)
+
+# Function that returns the difference in z and vz for orbits starting at the 
+# same (z,vz)_init integrated in potentials with different omega
+def zvzdiff(z_init, vz_init, mass, omega1, omega2, step):
+    # (temporary?) way to deal with small masses
+    relevant_particles_index = mass > (numpy.median(mass[mass > 10.**-9.])*10.**-6.)
+    if numpy.any(mass[relevant_particles_index]
+                 < (10.**-8.*numpy.median(mass[relevant_particles_index]))):
+        print(
+          numpy.sum(mass[relevant_particles_index]
+                    < (10.**-8.*numpy.median(mass[relevant_particles_index]))))
+
+    # integrate with wendy
+    g1 = wendy.nbody(
+      z_init[relevant_particles_index], vz_init[relevant_particles_index],
+      mass[relevant_particles_index], step, omega=omega1, approx=True, nleap=1)
+    z_next1, vz_next1 = next(g1)
+    dz1 = numpy.zeros_like(z_init)
+    dvz1 = numpy.zeros_like(z_init)
+    dz1[relevant_particles_index] = z_next1-z_init[relevant_particles_index]
+    dvz1[relevant_particles_index] = vz_next1-vz_init[relevant_particles_index]
+    g2 = wendy.nbody(
+      z_init[relevant_particles_index], vz_init[relevant_particles_index],
+      mass[relevant_particles_index], step, omega=omega2, approx=True, nleap=1)
+    z_next2, vz_next2 = next(g2)
+    dz2 = numpy.zeros_like(z_init)
+    dvz2 = numpy.zeros_like(z_init)
+    dz2[relevant_particles_index] = z_next2-z_init[relevant_particles_index]
+    dvz2[relevant_particles_index] = vz_next2-vz_init[relevant_particles_index]
+    
+    return (dz2-dz1, dvz2-dvz1)
+    
+def force_of_change_omega(w_m2m,zsun_m2m,omega_m2m,
+                          z_m2m,vz_m2m,z_prev,vz_prev,
+                          step,data_dicts,
+                          delta_m2m,
+                          h_m2m=0.02,kernel=hom2m.epanechnikov_kernel,
+                          delta_omega=0.3):
+    """Compute the force of change by direct finite difference 
+    of the objective function"""
+    mass = numpy.sum(w_m2m, axis=1)
+    dz, dvz = zvzdiff(
+      z_prev, vz_prev, mass, omega_m2m, omega_m2m+delta_omega, step)
+
+    fcw, delta_m2m_do = force_of_change_weights(\
+        w_m2m,zsun_m2m,z_m2m+dz,vz_m2m+dvz,
+        data_dicts,
+        'entropy',0.,1., # weights prior doesn't matter, so set to zero
+        h_m2m=h_m2m,kernel=kernel,
+        delta_m2m=delta_m2m)
+#    return -numpy.nansum(\
+#        delta_m2m*(delta_m2m_do-delta_m2m)/dens_obs_noise
+#        +deltav2_m2m*(deltav2_m2m_do-deltav2_m2m)/densv2_obs_noise)\
+#        /delta_omega
+
+    return -numpy.nansum(\
+        delta_m2m[0]*(delta_m2m_do[0]-delta_m2m[0])
+        +delta_m2m[1]*(delta_m2m_do[1]-delta_m2m[1]))\
+        /delta_omega
 
 ################################ M2M OPTIMIZATION #############################
 def parse_data_dict(data_dicts):
@@ -94,7 +165,7 @@ def fit_m2m(w_init,z_init,vz_init,
        w_init - initial weights [N] or [N,npop]
        z_init - initial z [N]
        vz_init - initial vz (rad) [N]
-       omega_m2m - potential parameter omega
+       omega_m2m - background potential parameter omega, if None no background
        zsun_m2m - Sun's height above the plane [N]
        data_dicts - list of dictionaries that hold the data, these are described in more detail below
        step= stepsize of orbit integration
@@ -138,6 +209,7 @@ def fit_m2m(w_init,z_init,vz_init,
               [weight evolution for randomly selected weights,index of random weights])
     HISTORY:
        2017-07-20 - Started from hom2m.fit_m2m - Bovy (UofT)
+       2018-10-16 - add external potential using omega_m2m - Kawata (MSSL/UCL)
     """
     if len(w_init.shape) == 1:
         w_out= numpy.empty((len(w_init),npop))
@@ -164,7 +236,7 @@ def fit_m2m(w_init,z_init,vz_init,
             vzevol = numpy.zeros((output_wevolution,nstep))
         
     # Compute force of change for first iteration
-    fcw, delta_m2m_new= \
+    fcw, delta_m2m_new = \
         force_of_change_weights(w_out,zsun_m2m,z_init,vz_init,
                                 data_dicts,prior,mu,w_prior,
                                 h_m2m=h_m2m,kernel=kernel)
@@ -175,7 +247,7 @@ def fit_m2m(w_init,z_init,vz_init,
                                   z_obs,dens_obs_noise,delta_m2m_new,
                                   densv2_obs_noise,deltav2_m2m_new,
                                   kernel=kernel,kernel_deriv=kernel_deriv,
-                                  h_m2m=h_m2m,use_v2=use_v2)
+                                  h_m2m=h_m2m)
     if not smooth is None:
         delta_m2m= delta_m2m_new
     else:
@@ -183,9 +255,10 @@ def fit_m2m(w_init,z_init,vz_init,
     if not smooth is None and not st96smooth:
         Q= [d**2 for d in delta_m2m**2.]
     # setup skipomega omega counter and prev. (z,vz) for F(omega)
-    #ocounter= skipomega-1 # Causes F(omega) to be computed in the 1st step
-    #z_prev, vz_prev= Aphi_to_zvz(A_init,phi_init-skipomega*step*omega_m2m,
-    #                             omega_m2m) #Rewind for first step
+    ocounter= skipomega-1 # Causes F(omega) to be computed in the 1st step
+    # Rewind for first step
+    mass = numpy.sum(w_out, axis=1)
+    z_prev, vz_prev = rewind_zvz(z_init, vz_init, mass, step, omega_m2m)
     z_m2m, vz_m2m= z_init, vz_init
     for ii in range(nstep):
         # Update weights first
@@ -204,7 +277,7 @@ def fit_m2m(w_init,z_init,vz_init,
                 domega= max_domega*numpy.sign(domega)
             omega_m2m+= domega
             # Keep (z,vz) the same in new potential
-            A_now, phi_now= zvz_to_Aphi(z_m2m,vz_m2m,omega_m2m)
+            # A_now, phi_now= zvz_to_Aphi(z_m2m,vz_m2m,omega_m2m)
             ocounter= 0
         # (Store objective function)
         if not smooth is None and st96smooth:
@@ -212,7 +285,7 @@ def fit_m2m(w_init,z_init,vz_init,
         elif not smooth is None:
             Q_out.append(copy.deepcopy(Q))
         else:
-            Q_out.append([d**2. for d in delta_m2m_new])
+            Q_out.append([d**2. for d in list(chain.from_iterable(delta_m2m_new))])
         # Then update the dynamics
         mass= numpy.sum(w_out,axis=1)
         # (temporary?) way to deal with small masses
@@ -222,7 +295,7 @@ def fit_m2m(w_init,z_init,vz_init,
         g= wendy.nbody(z_m2m[relevant_particles_index],
                        vz_m2m[relevant_particles_index],
                        mass[relevant_particles_index],
-                       step,maxcoll=10000000)
+                       step, omega=omega_m2m, maxcoll=10000000)
         tz_m2m, tvz_m2m= next(g)
         z_m2m[relevant_particles_index]= tz_m2m
         vz_m2m[relevant_particles_index]= tvz_m2m
@@ -234,7 +307,7 @@ def fit_m2m(w_init,z_init,vz_init,
             tdelta_m2m= None
         else:
             tdelta_m2m= delta_m2m
-        fcw_new, delta_m2m_new= \
+        fcw_new, delta_m2m_new = \
             force_of_change_weights(w_out,zsun_m2m,z_m2m,vz_m2m,
                                     data_dicts,prior,mu,w_prior,
                                     h_m2m=h_m2m,kernel=kernel,
@@ -244,11 +317,10 @@ def fit_m2m(w_init,z_init,vz_init,
             if smooth is None or not st96smooth:
                 tdelta_m2m= delta_m2m_new
             fcz_new= force_of_change_zsun(w_out,zsun_m2m,z_m2m,vz_m2m,
-                                          z_obs,dens_obs_noise,tdelta_m2m,
-                                          densv2_obs_noise,tdeltav2_m2m,
+                                          data_dicts,tdelta_m2m,
                                           kernel=kernel,
                                           kernel_deriv=kernel_deriv,
-                                          h_m2m=h_m2m,use_v2=use_v2)
+                                          h_m2m=h_m2m)
         if fit_omega:
             omega_out[ii]= omega_m2m
             # Update omega in this step?
@@ -256,23 +328,20 @@ def fit_m2m(w_init,z_init,vz_init,
             if ocounter == skipomega:
                 if not fit_zsun and (smooth is None or not st96smooth):
                     tdelta_m2m= delta_m2m_new
-                    tdeltav2_m2m= deltav2_m2m_new
+                    # tdeltav2_m2m= deltav2_m2m_new
                 fco_new= force_of_change_omega(w_out,zsun_m2m,omega_m2m,
                                                z_m2m,vz_m2m,z_prev,vz_prev,
                                                step*skipomega,
-                                               z_obs,dens_obs,dens_obs_noise,
-                                               tdelta_m2m,
-                                               densv2_obs,densv2_obs_noise,
-                                               tdeltav2_m2m,
+                                               data_dicts, tdelta_m2m,
                                                h_m2m=h_m2m,kernel=kernel,
-                                               delta_omega=delta_omega,
-                                               use_v2=use_v2)
+                                               delta_omega=delta_omega)
                 z_prev= copy.copy(z_m2m)
                 vz_prev= copy.copy(vz_m2m)
         # Increment smoothing
         if not smooth is None and st96smooth:
             delta_m2m= [d+step*smooth*(dn-d) 
-                        for d,dn in zip(delta_m2m,delta_m2m_new)]
+                        for d,dn in zip(list(chain.from_iterable(delta_m2m)),
+                                        list(chain.from_iterable(delta_m2m_new)))]
             fcw= fcw_new
             if fit_zsun: fcz= fcz_new
             if fit_omega and ocounter == skipomega: fco= fco_new

@@ -12,7 +12,14 @@ Jo Bovy - bovy at astro dot utoronto dot ca
 
 Jason Hunt - jason dot hunt at utoronto dot ca
 
+Morgan Bennett - bennett at astro.utoronto.ca
+
 ## Code
+
+## py/WendyM2M_XOmega.ipynb
+
+ Notebook for WendyM2M with a background potential and fitting omega. 
+
 
 ## py/WendyM2M_VerticalImpact.ipynb
 
