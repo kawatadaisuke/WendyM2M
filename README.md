@@ -12,7 +12,7 @@ Jo Bovy - bovy at astro dot utoronto dot ca
 
 Jason Hunt - jason dot hunt at utoronto dot ca
 
-Morgan Bennett - bennett at astro.utoronto.ca
+Morgan Bennett - bennett at astro dot utoronto dot ca
 
 ## Code
 
