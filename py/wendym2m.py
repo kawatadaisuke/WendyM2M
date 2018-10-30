@@ -24,19 +24,22 @@ def force_of_change_weights(w_m2m,zsun_m2m,z_m2m,vz_m2m,
                             prior,mu,w_prior,
                             h_m2m=0.02,
                             kernel=hom2m.epanechnikov_kernel,
-                            delta_m2m=None):
+                            delta_m2m=None,
+                            xnm_m2m=1.0):
     """Computes the force of change for all of the weights"""
     fcw= numpy.zeros_like(w_m2m)
     delta_m2m_new= []
     if delta_m2m is None: delta_m2m= [None for d in data_dicts]
     for ii,data_dict in enumerate(data_dicts):
         if data_dict['type'].lower() == 'dens':
+            # assuming a single population.
             tfcw, tdelta_m2m_new=\
                 hom2m.force_of_change_density_weights(\
                     numpy.sum(w_m2m[:,data_dict['pops']],axis=1),
                     zsun_m2m,z_m2m,vz_m2m,
                     data_dict['zobs'],data_dict['obs'],data_dict['unc'],
-                    h_m2m=h_m2m,kernel=kernel,delta_m2m=delta_m2m[ii])
+                    h_m2m=h_m2m,kernel=kernel,delta_m2m=delta_m2m[ii],
+                    xnm_m2m=xnm_m2m)
         elif data_dict['type'].lower() == 'v2':
             tfcw, tdelta_m2m_new=\
                 hom2m.force_of_change_v2_weights(\
@@ -100,7 +103,7 @@ def force_of_change_omega(w_m2m,zsun_m2m,omega_m2m,
                           step,data_dicts,
                           delta_m2m,
                           h_m2m=0.02,kernel=hom2m.epanechnikov_kernel,
-                          delta_omega=0.3):
+                          delta_omega=0.3, xnm_m2m=1.0):
     """Compute the force of change by direct finite difference 
     of the objective function"""
     mass = numpy.sum(w_m2m, axis=1)
@@ -112,7 +115,7 @@ def force_of_change_omega(w_m2m,zsun_m2m,omega_m2m,
         data_dicts,
         'entropy',0.,1., # weights prior doesn't matter, so set to zero
         h_m2m=h_m2m,kernel=kernel,
-        delta_m2m=delta_m2m)
+        delta_m2m=delta_m2m, xnm_m2m=xnm_m2m)
 #    return -numpy.nansum(\
 #        delta_m2m*(delta_m2m_do-delta_m2m)/dens_obs_noise
 #        +deltav2_m2m*(deltav2_m2m_do-deltav2_m2m)/densv2_obs_noise)\
@@ -155,7 +158,9 @@ def fit_m2m(w_init,z_init,vz_init,
             output_wevolution=False,
             output_zvzevolution = False, 
             fit_zsun=False,fit_omega=False,
-            skipomega=10,delta_omega=0.3):
+            skipomega=10,delta_omega=0.3,
+            number_density=False, xnm_m2m=1.0, fit_xnm=False
+            ):
     """
     NAME:
        fit_m2m
@@ -188,6 +193,9 @@ def fit_m2m(w_init,z_init,vz_init,
        output_zvzevolution= if set to an integer, return the time evolution
                 of this many randomly selected weights only when
                 output_wevolution is True
+       number_density = (False) if True, observed density is number density and density calculation requires xnm
+       xnm_m2m = (1.0) initial value of xnm: number_density/mass_density [1], assuming a single population
+       fit_xnm = (False) if True, also optimise xnm
     DATA DICTIONARIES:
        The data dictionaries have the following form:
            'type': type of measurement: 'dens', 'v2'
@@ -199,7 +207,7 @@ def fit_m2m(w_init,z_init,vz_init,
            'unc': the uncertainty in the observation
        of these, zobs, obs, and unc can be arrays for mulitple measurements
     OUTPUT:
-       (w_out,[zsun_out, [omega_out]],z_m2m,vz_m2m,Q_out,[wevol,rndindx]) - 
+       (w_out,[zsun_out, [omega_out, [xnm_out]],z_m2m,vz_m2m,Q_out,[wevol,rndindx]) - 
               (output weights [N],
               [Solar offset [nstep] optional],
               [omega [nstep] optional when fit_omega],
@@ -210,6 +218,7 @@ def fit_m2m(w_init,z_init,vz_init,
     HISTORY:
        2017-07-20 - Started from hom2m.fit_m2m - Bovy (UofT)
        2018-10-16 - add external potential using omega_m2m - Kawata (MSSL/UCL)
+       2018-10-29 - add xnm=number_ensity/mass_density - Kawata (MSSL/UCL)
     """
     if len(w_init.shape) == 1:
         w_out= numpy.empty((len(w_init),npop))
@@ -218,6 +227,11 @@ def fit_m2m(w_init,z_init,vz_init,
         w_out= copy.deepcopy(w_init)
     zsun_out= numpy.empty(nstep)
     omega_out= numpy.empty(nstep)
+    if number_density:
+        xnm_out= numpy.empty(nstep)
+    else:
+        xnm_out= numpy.ones(nstep)
+        xnm_m2m = 1.0
     if w_prior is None:
         w_prior= w_out
     # Parse data_dict
@@ -227,6 +241,7 @@ def fit_m2m(w_init,z_init,vz_init,
         eps= [eps]
         if fit_zsun: eps.append(eps[0])
         if fit_omega: eps.append(eps[0])
+        if fit_xnm: eps.append(eps[0])
     Q_out= []
     if output_wevolution:
         rndindx= numpy.random.permutation(len(w_out))[:output_wevolution]
@@ -239,7 +254,8 @@ def fit_m2m(w_init,z_init,vz_init,
     fcw, delta_m2m_new = \
         force_of_change_weights(w_out,zsun_m2m,z_init,vz_init,
                                 data_dicts,prior,mu,w_prior,
-                                h_m2m=h_m2m,kernel=kernel)
+                                h_m2m=h_m2m,kernel=kernel,
+                                xnm_m2m=xnm_m2m)
     fcw*= w_out
     fcz= 0.
     if fit_zsun:
@@ -311,7 +327,7 @@ def fit_m2m(w_init,z_init,vz_init,
             force_of_change_weights(w_out,zsun_m2m,z_m2m,vz_m2m,
                                     data_dicts,prior,mu,w_prior,
                                     h_m2m=h_m2m,kernel=kernel,
-                                    delta_m2m=tdelta_m2m)
+                                    delta_m2m=tdelta_m2m, xnm_m2m=xnm_m2m)
         fcw_new*= w_out
         if fit_zsun:
             if smooth is None or not st96smooth:
@@ -334,7 +350,8 @@ def fit_m2m(w_init,z_init,vz_init,
                                                step*skipomega,
                                                data_dicts, tdelta_m2m,
                                                h_m2m=h_m2m,kernel=kernel,
-                                               delta_omega=delta_omega)
+                                               delta_omega=delta_omega,
+                                               xnm_m2m=xnm_m2m)
                 z_prev= copy.copy(z_m2m)
                 vz_prev= copy.copy(vz_m2m)
         # Increment smoothing

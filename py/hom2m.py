@@ -129,7 +129,8 @@ def force_of_change_gamma_weights(w_m2m,mu,w_prior):
 def force_of_change_density_weights(w_m2m,zsun_m2m,z_m2m,vz_m2m,
                                     z_obs,dens_obs,dens_obs_noise,
                                     h_m2m=0.02,kernel=epanechnikov_kernel,
-                                    delta_m2m=None,Wij=None):
+                                    delta_m2m=None,Wij=None,
+                                    xnm_m2m=1.0):
     """Computes the force of change for all of the weights"""
     delta_m2m_new= numpy.zeros_like(z_obs)
     if Wij is None:
@@ -140,11 +141,12 @@ def force_of_change_density_weights(w_m2m,zsun_m2m,z_m2m,vz_m2m,
     for jj,zo in enumerate(z_obs):
         if calc_Wij:
             Wij[jj]= kernel(numpy.fabs(zo-z_m2m+zsun_m2m),h_m2m)
-        delta_m2m_new[jj]= (numpy.nansum(w_m2m*Wij[jj])-dens_obs[jj])/dens_obs_noise[jj]
+        delta_m2m_new[jj]= (
+          numpy.nansum(xnm_m2m*w_m2m*Wij[jj])-dens_obs[jj])/dens_obs_noise[jj]
     if delta_m2m is None: delta_m2m= delta_m2m_new
-    return (-numpy.nansum(numpy.tile(delta_m2m/dens_obs_noise,(len(z_m2m),1)).T
-                          *Wij,axis=0),
-             delta_m2m_new)
+    return (-xnm_m2m*numpy.nansum(
+      numpy.tile(delta_m2m/dens_obs_noise,(len(z_m2m),1)).T*Wij,axis=0),
+      delta_m2m_new)
 
 # Due to the velocity
 # For the weights
