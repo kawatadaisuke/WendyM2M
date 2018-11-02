@@ -126,6 +126,23 @@ def force_of_change_omega(w_m2m,zsun_m2m,omega_m2m,
         +delta_m2m[1]*(delta_m2m_do[1]-delta_m2m[1]))\
         /delta_omega
 
+# Xnm
+def force_of_change_xnm(w_m2m,zsun_m2m,z_m2m,vz_m2m,
+                        data_dicts,
+                        delta_m2m,h_m2m=0.02,
+                        kernel=hom2m.epanechnikov_kernel,
+                        xnm_m2m=1.0):
+    """Computes the force of change for Xnm"""
+    z_obs = data_dicts['type' == 'dens']['zobs']
+    dens_obs_noise = data_dicts['type' == 'dens']['unc']
+    Wij = numpy.zeros((len(z_obs), len(z_m2m)))
+    mdens_m2m = numpy.zeros(len(z_obs))
+    for jj,zo in enumerate(z_obs):
+        Wij[jj] = kernel(numpy.fabs(zo-z_m2m+zsun_m2m), h_m2m)
+        mdens_m2m[jj] = numpy.nansum(w_m2m*Wij[jj])
+
+    return (-numpy.nansum(mdens_m2m*delta_m2m[0]/dens_obs_noise))
+
 ################################ M2M OPTIMIZATION #############################
 def parse_data_dict(data_dicts):
     """
@@ -264,6 +281,11 @@ def fit_m2m(w_init,z_init,vz_init,
                                   densv2_obs_noise,deltav2_m2m_new,
                                   kernel=kernel,kernel_deriv=kernel_deriv,
                                   h_m2m=h_m2m)
+    fcxnm = 0.0
+    if fit_xnm:
+        fcxnm = force_of_change_xnm(w_init, zsun_m2m, z_init, vz_init,
+                                    data_dicts, delta_m2m_new, h_m2m=h_m2m,
+                                    kernel=kernel, xnm_m2m=xnm_m2m)
     if not smooth is None:
         delta_m2m= delta_m2m_new
     else:
@@ -285,6 +307,16 @@ def fit_m2m(w_init,z_init,vz_init,
         if fit_zsun: 
             zsun_m2m+= eps[1]*step*fcz 
             zsun_out[ii]= zsun_m2m
+        # then xnm
+        if fit_xnm:
+            dxnm = eps[1+fit_zsun+fit_omega]*step*fcxnm
+            max_dxnm = xnm_m2m/10.0
+            if numpy.fabs(dxnm) > max_dxnm:
+                dxnm = max_dxnm*numpy.sign(dxnm)
+            xnm_m2m += dxnm
+            xnm_out[ii] = xnm_m2m
+            # print(ii,' step Xnm=',xnm_m2m, eps[1+fit_zsun+fit_omega])
+            
         # then omega (skipped in the first step, so undeclared vars okay)
         if fit_omega and ocounter == skipomega:
             domega= eps[1+fit_zsun]*step*skipomega*fco
@@ -337,6 +369,12 @@ def fit_m2m(w_init,z_init,vz_init,
                                           kernel=kernel,
                                           kernel_deriv=kernel_deriv,
                                           h_m2m=h_m2m)
+        if fit_xnm:
+            if smooth is None or not st96smooth:
+                tdelta_m2m = delta_m2m_new
+            fcxnm_new = force_of_change_xnm(
+              w_out, zsun_m2m, z_m2m, vz_m2m, data_dicts,
+              tdelta_m2m, h_m2m=h_m2m, kernel=kernel, xnm_m2m=xnm_m2m)
         if fit_omega:
             omega_out[ii]= omega_m2m
             # Update omega in this step?
@@ -362,16 +400,19 @@ def fit_m2m(w_init,z_init,vz_init,
             fcw= fcw_new
             if fit_zsun: fcz= fcz_new
             if fit_omega and ocounter == skipomega: fco= fco_new
+            if fit_xnm: fcxnm = fcxnm_new
         elif not smooth is None:
             Q_new= [d**2. for d in delta_m2m_new]
             Q= [q+step*smooth*(qn-q) for q,qn in zip(Q,Q_new)]
             fcw+= step*smooth*(fcw_new-fcw)
             if fit_zsun: fcz+= step*smooth*(fcz_new-fcz)
+            if fit_xnm: fcxnm += step*smooth*(fcxnm-fcxnm_new)
             if fit_omega and ocounter == skipomega:
                 fco+= step*skipomega*smooth*(fco_new-fco)
         else:
             fcw= fcw_new
             if fit_zsun: fcz= fcz_new
+            if fit_xnm: fcxnm = fcxnm_new
             if fit_omega and ocounter == skipomega: fco= fco_new
         # Record random weights if requested
         if output_wevolution:
@@ -383,6 +424,8 @@ def fit_m2m(w_init,z_init,vz_init,
     if fit_zsun: out= out+(zsun_out,)
     if fit_omega:
         out= out+(omega_out,)
+    if fit_xnm:
+        out= out+(xnm_out,)
     out= out+(z_m2m,vz_m2m,)
     out= out+(numpy.array(Q_out),)
     if output_wevolution:
