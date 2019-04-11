@@ -64,6 +64,15 @@ def compute_densv2(z,vz,zsun,z_obs,h_obs,w=None,kernel=epanechnikov_kernel):
     for jj,zo in enumerate(z_obs):
         densv2[jj]= numpy.nansum(w*kernel(numpy.fabs(zo-z+zsun),h_obs)*vz**2.)
     return densv2
+### compute_v
+def compute_v(z,vz,zsun,z_obs,h_obs,w=None,kernel=epanechnikov_kernel):
+    if w is None: w= numpy.ones_like(z)/float(len(z))
+    vm= numpy.zeros_like(z_obs)
+    for jj,zo in enumerate(z_obs):
+        vm[jj]= numpy.nansum(w*kernel(numpy.fabs(zo-z+zsun),h_obs)*vz)\
+            /numpy.nansum(w*kernel(numpy.fabs(zo-z+zsun),h_obs))
+    return vm
+
 
 ################################### M2M PRIOR #################################
 def prior(w_m2m,mu,w_prior,prior):
@@ -198,6 +207,34 @@ def force_of_change_v2_weights(w_m2m,zsun_m2m,z_m2m,vz_m2m,
               *(vz_m2m**2.)-numpy.nansum(numpy.tile(
                     deltav2_m2m*wv2_m2m/((dens_m2m**2)*v2_obs_noise),
                     (len(z_m2m),1)).T*(Wij),axis=0)),deltav2_m2m_new)
+
+# Due to v
+def force_of_change_v_weights(w_m2m,zsun_m2m,z_m2m,vz_m2m,
+                               z_obs,v_obs,v_obs_noise,
+                               h_m2m,kernel=epanechnikov_kernel,
+                               deltav_m2m=None,Wij=None):
+    """Computes the force of change for all of the weights due to the velocity constraint"""
+    deltav_m2m_new= numpy.zeros_like(z_obs)
+    if Wij is None:
+        Wij= numpy.zeros((len(z_obs),len(z_m2m)))
+        calc_Wij= True
+    else:
+        calc_Wij= False
+    dens_m2m= numpy.zeros_like(z_obs)
+    wv_m2m= numpy.zeros_like(z_obs)
+    for jj,zo in enumerate(z_obs):
+        if calc_Wij:
+            Wij[jj]= kernel(numpy.fabs(zo-z_m2m+zsun_m2m),h_m2m)
+        dens_m2m[jj]=numpy.nansum(w_m2m*Wij[jj])
+        wv_m2m[jj]=numpy.nansum(w_m2m*Wij[jj]*(vz_m2m))
+        deltav_m2m_new[jj]= (wv_m2m[jj]/dens_m2m[jj]-v_obs[jj]) \
+            /v_obs_noise[jj]
+    if deltav_m2m is None: deltav_m2m= deltav_m2m_new
+    return (-(numpy.nansum(numpy.tile(deltav_m2m/(dens_m2m*v_obs_noise), 
+                                      (len(z_m2m),1)).T*(Wij),axis=0)
+              *(vz_m2m)-numpy.nansum(numpy.tile(
+                    deltav_m2m*wv_m2m/((dens_m2m**2)*v_obs_noise),
+                    (len(z_m2m),1)).T*(Wij),axis=0)),deltav_m2m_new)
 
 # Short-cuts
 def force_of_change_weights(w_m2m,zsun_m2m,z_m2m,vz_m2m,

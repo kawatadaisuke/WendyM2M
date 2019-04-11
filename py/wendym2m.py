@@ -47,6 +47,13 @@ def force_of_change_weights(w_m2m,zsun_m2m,z_m2m,vz_m2m,
                     zsun_m2m,z_m2m,vz_m2m,
                     data_dict['zobs'],data_dict['obs'],data_dict['unc'],
                     h_m2m=h_m2m,kernel=kernel,deltav2_m2m=delta_m2m[ii])
+        elif data_dict['type'].lower() == 'v':
+            tfcw, tdelta_m2m_new=\
+                hom2m.force_of_change_v_weights(\
+                    numpy.sum(w_m2m[:,data_dict['pops']],axis=1),
+                    zsun_m2m,z_m2m,vz_m2m,
+                    data_dict['zobs'],data_dict['obs'],data_dict['unc'],
+                    h_m2m=h_m2m,kernel=kernel,deltav2_m2m=delta_m2m[ii])
         else:
             raise ValueError("'type' of measurement in data_dict not understood")
         fcw[:,data_dict['pops']]+= numpy.atleast_2d(tfcw).T

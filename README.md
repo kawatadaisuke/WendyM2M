@@ -16,6 +16,19 @@ Morgan Bennett - bennett at astro dot utoronto dot ca
 
 ## Code
 
+## py/WendyM2M_XomegaXnm_vobs_perturbed.ipynb
+
+ Notebook for WendyM2M with an external potential taking into account number/mass density ratio, Xnm, and applying to a perturbed disk. The observational constraints include the mean of v. 
+
+
+## py/WendyM2M_Xnm_perturbed.ipynb
+
+ Notebook for WendyM2M with an external potential taking into account number/mass density ratio, Xnm, and applying to a perturbed disk.
+
+## py/WendyM2M_Xnm.ipynb
+
+ Notebook for WendyM2M with an external potential taking into account number/mass density ratio, Xnm
+
 ## py/WendyM2M_XOmega.ipynb
 
  Notebook for WendyM2M with a background potential and fitting omega. 
