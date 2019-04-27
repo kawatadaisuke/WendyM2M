@@ -1,7 +1,7 @@
 # wendym2m.py: M2M with wendy, a 1D N-body code
 import copy
 import numpy
-import wendy
+import wendypy
 import hom2m
 from itertools import chain
 
@@ -68,7 +68,7 @@ def force_of_change_weights(w_m2m,zsun_m2m,z_m2m,vz_m2m,
 
 # rewind the orbit for one step.
 def rewind_zvz(z_init, vz_init, mass, omega, step):
-    grewind = wendy.nbody(
+    grewind = wendypy.nbody(
       z_init, vz_init, mass, -step, omega=omega, approx=True, nleap=1)
     z_rewind, vz_rewind = next(grewind)
 
@@ -86,7 +86,7 @@ def zvzdiff(z_init, vz_init, mass, omega1, omega2, step):
                     < (10.**-8.*numpy.median(mass[relevant_particles_index]))))
 
     # integrate with wendy
-    g1 = wendy.nbody(
+    g1 = wendypy.nbody(
       z_init[relevant_particles_index], vz_init[relevant_particles_index],
       mass[relevant_particles_index], step, omega=omega1, approx=True, nleap=1)
     z_next1, vz_next1 = next(g1)
@@ -94,7 +94,7 @@ def zvzdiff(z_init, vz_init, mass, omega1, omega2, step):
     dvz1 = numpy.zeros_like(z_init)
     dz1[relevant_particles_index] = z_next1-z_init[relevant_particles_index]
     dvz1[relevant_particles_index] = vz_next1-vz_init[relevant_particles_index]
-    g2 = wendy.nbody(
+    g2 = wendypy.nbody(
       z_init[relevant_particles_index], vz_init[relevant_particles_index],
       mass[relevant_particles_index], step, omega=omega2, approx=True, nleap=1)
     z_next2, vz_next2 = next(g2)
@@ -347,10 +347,14 @@ def fit_m2m(w_init,z_init,vz_init,
         relevant_particles_index= mass > (numpy.median(mass[mass > 10.**-9.])*10.**-6.)
         if numpy.any(mass[relevant_particles_index] < (10.**-8.*numpy.median(mass[relevant_particles_index]))):
             print(numpy.sum(mass[relevant_particles_index] < (10.**-8.*numpy.median(mass[relevant_particles_index]))))
-        g= wendy.nbody(z_m2m[relevant_particles_index],
+        # g= wendypy.nbody(z_m2m[relevant_particles_index],
+        #               vz_m2m[relevant_particles_index],
+        #               mass[relevant_particles_index],
+        #               step, omega=omega_m2m, maxcoll=10000000)
+        g= wendypy.nbody(z_m2m[relevant_particles_index],
                        vz_m2m[relevant_particles_index],
                        mass[relevant_particles_index],
-                       step, omega=omega_m2m, maxcoll=10000000)
+                       step, omega=omega_m2m, approx=True, nleap=1)
         tz_m2m, tvz_m2m= next(g)
         z_m2m[relevant_particles_index]= tz_m2m
         vz_m2m[relevant_particles_index]= tvz_m2m
