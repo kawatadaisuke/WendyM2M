@@ -681,7 +681,7 @@ def sample_m2m(nsamples,
     w_out= numpy.empty((nsamples,nw))
     z_out= numpy.empty_like(w_out)
     vz_out= numpy.empty_like(w_out)
-    eps= kwargs.get('eps',0.1)
+    eps= kwargs.get('eps', 0.00001)
     nstep= kwargs.get('nstep',1000)
     fix_weights= kwargs.pop('fix_weights',False)
     # zsun

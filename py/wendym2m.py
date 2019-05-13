@@ -1,4 +1,5 @@
 # wendym2m.py: M2M with wendy, a 1D N-body code
+import tqdm
 import copy
 import numpy
 import wendypy
@@ -53,7 +54,7 @@ def force_of_change_weights(w_m2m,zsun_m2m,z_m2m,vz_m2m,
                     numpy.sum(w_m2m[:,data_dict['pops']],axis=1),
                     zsun_m2m,z_m2m,vz_m2m,
                     data_dict['zobs'],data_dict['obs'],data_dict['unc'],
-                    h_m2m=h_m2m,kernel=kernel,deltav2_m2m=delta_m2m[ii])
+                    h_m2m=h_m2m,kernel=kernel,deltav_m2m=delta_m2m[ii])
         else:
             raise ValueError("'type' of measurement in data_dict not understood")
         fcw[:,data_dict['pops']]+= numpy.atleast_2d(tfcw).T
@@ -61,6 +62,8 @@ def force_of_change_weights(w_m2m,zsun_m2m,z_m2m,vz_m2m,
         delta_m2m_new.append(tdelta_m2m_new)
     # Add prior
 
+    # print(' shape fcw, w, mu, w_prior =',numpy.shape(fcw), numpy.shape(w_m2m), numpy.shape(mu), numpy.shape(w_prior))
+    # print(' shape fcw =',numpy.shape(hom2m.force_of_change_prior_weights(w_m2m,mu,w_prior,prior)))
     fcw+= hom2m.force_of_change_prior_weights(w_m2m,mu,w_prior,prior)
     return (fcw, delta_m2m_new)
 
@@ -73,6 +76,18 @@ def rewind_zvz(z_init, vz_init, mass, omega, step):
     z_rewind, vz_rewind = next(grewind)
 
     return (z_rewind, vz_rewind)
+
+# rewind the orbit for n step.
+
+def rewind_nstep_zvz(z_init, vz_init, mass, omega, step, nstep):
+    grewind = wendypy.nbody(
+      z_init, vz_init, mass, -step, omega=omega, approx=True, nleap=1)
+    for ii in range(nstep):
+        z_rewind, vz_rewind = next(grewind)
+
+    return (z_rewind, vz_rewind)
+
+
 
 # Function that returns the difference in z and vz for orbits starting at the 
 # same (z,vz)_init integrated in potentials with different omega
@@ -168,6 +183,7 @@ def parse_data_dict(data_dicts):
         if isinstance(data_dict['pops'],int):
             data_dict['pops']= [data_dict['pops']]
     return data_dict
+  
 
 def fit_m2m(w_init,z_init,vz_init,
             omega_m2m,zsun_m2m,
@@ -183,7 +199,7 @@ def fit_m2m(w_init,z_init,vz_init,
             output_zvzevolution = False, 
             fit_zsun=False,fit_omega=False,
             skipomega=10,delta_omega=0.3,
-            number_density=False, xnm_m2m=1.0, fit_xnm=False
+            number_density=False, xnm_m2m=1.0, skipxnm=10, fit_xnm=False
             ):
     """
     NAME:
@@ -219,6 +235,7 @@ def fit_m2m(w_init,z_init,vz_init,
                 output_wevolution is True
        number_density = (False) if True, observed density is number density and density calculation requires xnm
        xnm_m2m = (1.0) initial value of xnm: number_density/mass_density [1], assuming a single population
+       skipxnm = only update Xnm every skipxnm steps
        fit_xnm = (False) if True, also optimise xnm
     DATA DICTIONARIES:
        The data dictionaries have the following form:
@@ -257,7 +274,14 @@ def fit_m2m(w_init,z_init,vz_init,
         xnm_out= numpy.ones(nstep)
         xnm_m2m = 1.0
     if w_prior is None:
-        w_prior= w_out
+        if len(w_init.shape) == 1:
+            w_prior= numpy.empty((len(w_init),npop))
+            w_prior[:,:]= numpy.tile(copy.deepcopy(w_init),(npop,1)).T
+        else:
+            w_piror= copy.deepcopy(w_init)
+    else:
+        if len(w_prior.shape) == 1:
+            w_prior = numpy.tile(w_prior, (npop, 1)).T
     # Parse data_dict
     data_dict= parse_data_dict(data_dicts)
     # Parse eps
@@ -300,10 +324,11 @@ def fit_m2m(w_init,z_init,vz_init,
     if not smooth is None and not st96smooth:
         Q= [d**2 for d in delta_m2m**2.]
     # setup skipomega omega counter and prev. (z,vz) for F(omega)
+    xcounter= skipxnm-1 # Causes F(Xnm) to be computed in the 1st step    
     ocounter= skipomega-1 # Causes F(omega) to be computed in the 1st step
     # Rewind for first step
     mass = numpy.sum(w_out, axis=1)
-    z_prev, vz_prev = rewind_zvz(z_init, vz_init, mass, step, omega_m2m)
+    z_prev, vz_prev = rewind_zvz(z_init, vz_init, mass, omega_m2m, step)
     z_m2m, vz_m2m= z_init, vz_init
     for ii in range(nstep):
         # Update weights first
@@ -315,19 +340,19 @@ def fit_m2m(w_init,z_init,vz_init,
             zsun_m2m+= eps[1]*step*fcz 
             zsun_out[ii]= zsun_m2m
         # then xnm
-        if fit_xnm:
+        if fit_xnm and xcounter == skipxnm:
             dxnm = eps[1+fit_zsun+fit_omega]*step*fcxnm
             max_dxnm = xnm_m2m/10.0
             if numpy.fabs(dxnm) > max_dxnm:
                 dxnm = max_dxnm*numpy.sign(dxnm)
             xnm_m2m += dxnm
-            xnm_out[ii] = xnm_m2m
             # print(ii,' step Xnm=',xnm_m2m, eps[1+fit_zsun+fit_omega])
-            
+            xcounter = 0
         # then omega (skipped in the first step, so undeclared vars okay)
         if fit_omega and ocounter == skipomega:
             domega= eps[1+fit_zsun]*step*skipomega*fco
-            max_domega= delta_omega/30.
+            # max_domega= delta_omega/30.
+            max_domega= omega_m2m/10.0
             if numpy.fabs(domega) > max_domega:
                 domega= max_domega*numpy.sign(domega)
             omega_m2m+= domega
@@ -381,11 +406,15 @@ def fit_m2m(w_init,z_init,vz_init,
                                           kernel_deriv=kernel_deriv,
                                           h_m2m=h_m2m)
         if fit_xnm:
-            if smooth is None or not st96smooth:
-                tdelta_m2m = delta_m2m_new
-            fcxnm_new = force_of_change_xnm(
-              w_out, zsun_m2m, z_m2m, vz_m2m, data_dicts,
-              tdelta_m2m, h_m2m=h_m2m, kernel=kernel, xnm_m2m=xnm_m2m)
+            # Update Xnm in this step?
+            xnm_out[ii] = xnm_m2m          
+            xcounter += 1
+            if xcounter == skipxnm:
+                if smooth is None or not st96smooth:
+                    tdelta_m2m = delta_m2m_new
+                fcxnm_new = force_of_change_xnm(
+                  w_out, zsun_m2m, z_m2m, vz_m2m, data_dicts,
+                  tdelta_m2m, h_m2m=h_m2m, kernel=kernel, xnm_m2m=xnm_m2m)
         if fit_omega:
             omega_out[ii]= omega_m2m
             # Update omega in this step?
@@ -411,19 +440,20 @@ def fit_m2m(w_init,z_init,vz_init,
             fcw= fcw_new
             if fit_zsun: fcz= fcz_new
             if fit_omega and ocounter == skipomega: fco= fco_new
-            if fit_xnm: fcxnm = fcxnm_new
+            if fit_xnm and xcounter == skipxnm: fcxnm = fcxnm_new
         elif not smooth is None:
             Q_new= [d**2. for d in delta_m2m_new]
             Q= [q+step*smooth*(qn-q) for q,qn in zip(Q,Q_new)]
             fcw+= step*smooth*(fcw_new-fcw)
             if fit_zsun: fcz+= step*smooth*(fcz_new-fcz)
-            if fit_xnm: fcxnm += step*smooth*(fcxnm-fcxnm_new)
+            if fit_xnm and xcounter == skipxnm:
+                fcxnm += step*smooth*(fcxnm-fcxnm_new)
             if fit_omega and ocounter == skipomega:
                 fco+= step*skipomega*smooth*(fco_new-fco)
         else:
             fcw= fcw_new
             if fit_zsun: fcz= fcz_new
-            if fit_xnm: fcxnm = fcxnm_new
+            if fit_xnm and xcounter == skipxnm: fcxnm = fcxnm_new
             if fit_omega and ocounter == skipomega: fco= fco_new
         # Record random weights if requested
         if output_wevolution:
@@ -445,5 +475,286 @@ def fit_m2m(w_init,z_init,vz_init,
             out = out+(zevol,)
             out = out+(vzevol,)
     return out
+  
+def sample_m2m(nsamples,
+               w_init,z_init,vz_init,
+               omega_m2m,zsun_m2m,
+               data_dicts, **kwargs):
+    """
+    NAME:
+       sample_m2m
+    PURPOSE:
+       Sample parameters using M2M optimization for the weights and Metropolis-Hastings for the other parameters
+    INPUT:
+       nsamples - number of samples from the ~PDF
+       fix_weights= (False) if True, don't sample the weights
 
+       zsun parameters:
+          sig_zsun= (0.005) if sampling zsun (fit_zsun=True), proposal stepsize for steps in zsun
+          nmh_zsun= (20) number of MH steps to do for zsun for each weights sample
+          nstep_zsun= (500) number of steps to average the likelihood over for zsun MH
 
+       xnm parameters:
+          sig_xnm= (0.005) if sampling zsun (fit_zsun=True), proposal stepsize for steps in Xnm
+          nmh_xnm= (20) number of MH steps to do for zsun for each weights sample
+          nstep_xnm= (500) number of steps to average the likelihood over for Xnm MH
+
+       omega parameters:
+          sig_omega= (0.2) if sampling omega (fit_omega=True), proposal stepsize for steps in omega
+          nmh_omega= (20) number of MH steps to do for omega for each weights sample
+          nstep_omega= (500) number of steps to average the likelihood over for omega MH; also the number of steps taken to change omega adiabatically
+          nstepadfac_omega= (10) use nstepadfac_omega x nstep_omega steps to adiabatically change the frequency to the proposed value
+
+       Rest of the parameters are the same as for fit_m2m
+    OUTPUT:
+       (w_out,[zsun_out],Q_out,z,vz) - 
+               (output weights [nsamples,N],
+               [Solar offset [nsamples],
+               objective function [nsamples,nobs],
+               positions at the final step of each sample [nsamples,N],
+               velocities at the final step of each sample [nsamples,N])
+    HISTORY:
+       2019-04-29 - Copied from Jo Bovy's simple-m2m/py/hom2m.py by D. Kawata (MSSL, UCL)
+    """
+    nw= len(w_init)
+    npop = kwargs.get('npop',1)
+    w_out= numpy.empty((nsamples, nw, npop))
+    z_out= numpy.empty((nsamples, nw))
+    vz_out= numpy.empty_like(z_out)
+    step= kwargs.get('step',0.001)
+    eps= kwargs.get('eps',0.001)
+    nstep= kwargs.get('nstep',1000)
+    fix_weights= kwargs.pop('fix_weights',False)
+    # turn off w_evolution
+    kwargs['output_wevolution']= False
+    # zsun
+    fit_zsun= kwargs.get('fit_zsun',False)
+    kwargs['fit_zsun']= False # Turn off for weights fits
+    sig_zsun= kwargs.pop('sig_zsun',0.005)
+    nmh_zsun= kwargs.pop('nmh_zsun',20)
+    nstep_zsun= kwargs.pop('nstep_zsun',499*fit_zsun+1)
+    if fit_zsun: 
+        zsun_out= numpy.empty((nsamples))
+        nacc_zsun= 0
+    # xnm
+    fit_xnm= kwargs.get('fit_xnm',False)
+    kwargs['fit_xnm']= False # Turn off for weights fits
+    sig_xnm= kwargs.pop('sig_xnm',0.005)
+    nmh_xnm= kwargs.pop('nmh_xnm',20)
+    nstep_xnm= kwargs.pop('nstep_xnm',nstep_zsun*fit_zsun \
+                          +500*(1-fit_zsun))
+    if fit_xnm:
+        xnm_m2m= kwargs.pop('xnm_m2m',1.0)      
+        xnm_out= numpy.empty((nsamples))
+        nacc_xnm= 0
+    # omega
+    fit_omega= kwargs.get('fit_omega',False)
+    kwargs['fit_omega']= False # Turn off for weights fits
+    sig_omega= kwargs.pop('sig_omega',0.005)
+    nmh_omega= kwargs.pop('nmh_omega',20)
+    nstep_omega= kwargs.pop('nstep_omega',numpy.maximum(nstep_zsun*fit_zsun \
+                            +500*(1-fit_zsun),
+                            nstep_xnm*fit_xnm+500*(1-fit_xnm)))
+    nstepadfac_omega= kwargs.pop('nstepadfac_omega',10)
+    if fit_omega: 
+        omega_out= numpy.empty((nsamples))
+        nacc_omega= 0
+    # Copy some kwargs that we need to re-use
+    nout = 0
+    for ii,data_dict in enumerate(data_dicts):
+        if data_dict['type'].lower() == 'dens':
+          dens_obs = copy.deepcopy(data_dict['obs'])
+          nout += len(dens_obs)
+        elif data_dict['type'].lower() == 'v2':
+          v2_obs = copy.deepcopy(data_dict['obs'])
+          nout += len(v2_obs)
+        elif data_dict['type'].lower() == 'v':
+          v_obs = copy.deepcopy(data_dict['obs'])
+          nout += len(v_obs)
+        else:
+            raise ValueError("'type' of measurement in data_dict in sample_m2m not understood")
+    Q_out= numpy.empty((nsamples, nout))
+    
+    # Setup orbits
+    # A_now, phi_now= zvz_to_Aphi(z_init,vz_init,omega_m2m)
+    z_m2m= z_init
+    vz_m2m= vz_init
+    for ii in tqdm.tqdm(range(nsamples)):
+        if not fix_weights:
+            # Draw new observations
+            for jj,data_dict in enumerate(data_dicts):
+              if data_dict['type'].lower() == 'dens':
+                data_dicts['type' == 'dens']['obs'] = dens_obs\
+                  +numpy.random.normal(size=len(dens_obs))*data_dict['unc']
+              elif data_dict['type'].lower() == 'v2':
+                data_dicts['type' == 'v2']['obs'] = v2_obs\
+                  +numpy.random.normal(size=len(v2_obs))*data_dict['unc']
+              elif data_dict['type'].lower() == 'v':
+                data_dicts['type' == 'v']['obs'] = v_obs\
+                  +numpy.random.normal(size=len(v_obs))*data_dict['unc']
+              else:
+                raise ValueError( \
+                  "'type' of measurement in data_dict in sample_m2m not understood")
+            tout= fit_m2m(w_init,z_init,vz_init,omega_m2m,zsun_m2m, \
+                          data_dicts, **kwargs)
+            # Keep track of orbits
+            # phi_now+= omega_m2m*kwargs.get('nstep',1000) \
+            #    *kwargs.get('step',0.001)
+            # z_m2m, vz_m2m= Aphi_to_zvz(A_now,phi_now,omega_m2m)
+            # Let's not do this for now
+            # z_m2m = z_init
+            # vz_m2m = vz_m2m
+            # Need to switch back to original data
+            for jj,data_dict in enumerate(data_dicts):
+              if data_dict['type'].lower() == 'dens':
+                data_dicts['type' == 'dens']['obs'] = dens_obs
+              elif data_dict['type'].lower() == 'v2':
+                data_dicts['type' == 'v2']['obs'] = v2_obs
+              elif data_dict['type'].lower() == 'v':
+                data_dicts['type' == 'v']['obs'] = v_obs
+              else:
+                raise ValueError( \
+                  "'type' of measurement in data_dict in sample_m2m not understood")
+        else:
+            tout= [w_init]
+        # Compute average chi^2 for initial zsun
+        if fit_zsun:
+            tnstep= nstep_zsun
+        elif fit_xnm:
+            tnstep= nstep_xnm
+        else:
+            tnstep= nstep_omega
+        kwargs['nstep']= tnstep
+        kwargs['eps']= 0. # Don't change weights
+        # keep the original z and vz
+        z0_m2m = copy.deepcopy(z_m2m)
+        vz0_m2m = copy.deepcopy(vz_m2m)
+        dum_wout, dum_z, dum_vz, dum_Q = fit_m2m( \
+                     tout[0],z_m2m,vz_m2m,omega_m2m,zsun_m2m, \
+                     data_dicts, **kwargs)
+        kwargs['nstep']= nstep
+        kwargs['eps']= eps
+        tQ= numpy.mean(dum_Q, axis=0)
+        # Keep track of orbits
+        z_m2m = dum_z
+        vz_m2m = dum_vz
+        if fit_zsun:
+            # Rewind orbit, so we use same part for all zsun/omega
+            # phi_now-= omega_m2m*nstep_zsun*kwargs.get('step',0.001)
+            # Rewind by -nstep_zsun
+            mass = numpy.sum(tout[0], axis=1)
+            z_m2m, vz_m2m = rewind_nstep_zvz(z0_m2m, vz0_m2m, mass,
+                                               omega_m2m, step, nstep)
+            kwargs['nstep']= nstep_zsun
+            kwargs['eps']= 0. # Don't change weights
+            for jj in range(nmh_zsun):
+                # Do a MH step
+                zsun_new= zsun_m2m+numpy.random.normal()*sig_zsun
+                dum_wout, dum_z, dum_vz, dum_Q = fit_m2m(tout[0], \
+                   z_m2m,vz_m2m,omega_m2m,zsun_new,data_dicts, **kwargs)
+                acc= (numpy.nansum(tQ)
+                      -numpy.mean(numpy.nansum(dum_Q, axis=1)))/2.
+                if acc > numpy.log(numpy.random.uniform()):
+                    zsun_m2m= zsun_new
+                    tQ= numpy.mean(dum_Q, axis=0)
+                    nacc_zsun+= 1
+            kwargs['nstep']= nstep
+            kwargs['eps']= eps
+            zsun_out[ii]= zsun_m2m
+            # update orbit
+            z_m2m = dum_z
+            vz_m2m = dum_vz
+        if fit_zsun and nstepzsun != nstep_xnm:
+            # Need to compute average obj. function for nstep_omega
+            kwargs['nstep']= nstep_xnm
+            kwargs['eps']= 0. # Don't change weights
+            dum_wout, dum_z, dum_vz, dum_Q = fit_m2m(tout[0], \
+              z_m2m,vz_m2m,omega_m2m,zsun_m2m,data_discts, **kwargs)
+            kwargs['nstep']= nstep
+            kwargs['eps']= eps
+            tQ= numpy.mean(dum_Q, axis=0)
+            # Keep track of orbits
+            z_m2m = dum_z
+            vz_m2m = dum_vz
+        if fit_xnm:
+            # Rewind by -nstep_zsun
+            mass = numpy.sum(tout[0], axis=1)
+            z_m2m, vz_m2m = rewind_nstep_zvz(z0_m2m, vz0_m2m, mass,
+                                               omega_m2m, step, nstep_xnm)
+            kwargs['nstep']= nstep_xnm
+            kwargs['eps']= 0. # Don't change weights
+            for jj in range(nmh_xnm):
+                # Do a MH step
+                xnm_new= xnm_m2m+numpy.random.normal()*sig_xnm
+                kwargs['xnm_m2m']= xnm_new
+                dum_wout, dum_z, dum_vz, dum_Q = fit_m2m(tout[0], \
+                   z_m2m,vz_m2m,omega_m2m,zsun_m2m,data_dicts, **kwargs)
+                acc= (numpy.nansum(tQ)
+                      -numpy.mean(numpy.nansum(dum_Q, axis=1)))/2.
+                if acc > numpy.log(numpy.random.uniform()):
+                    xnm_m2m= xnm_new
+                    tQ= numpy.mean(dum_Q, axis=0)
+                    nacc_xnm+= 1
+            kwargs['nstep']= nstep
+            kwargs['eps']= eps
+            xnm_out[ii]= xnm_m2m
+            # update orbit
+            z_m2m = dum_z
+            vz_m2m = dum_vz
+        if fit_omega:
+            for jj in range(nmh_omega):
+                # get mass
+                mass = numpy.sum(tout[0], axis=1)
+                # Do a MH step
+                omega_new= omega_m2m+numpy.random.normal()*sig_omega
+                # Slowly change the orbits from omega to omega_new, by 
+                # integrating backward
+                z_cur= copy.copy(z_m2m)
+                vz_cur= copy.copy(vz_m2m)
+                for kk in range(nstep_omega*nstepadfac_omega):
+                    omega_cur= omega_m2m+(omega_new-omega_m2m)\
+                        *kk/float(nstep_omega*nstepadfac_omega-1)
+                    z_cur, vz_cur = rewind_zvz(z_cur, vz_cur, mass, omega_m2m,
+                                               step)
+                    A_cur, phi_cur= zvz_to_Aphi(z_cur,vz_cur,omega_cur)
+                    phi_cur-= omega_cur*kwargs.get('step',0.001)
+                    z_cur, vz_cur= Aphi_to_zvz(A_cur,phi_cur,omega_cur)
+                # and forward again!
+                phi_cur+= omega_cur*kwargs.get('step',0.001)\
+                    *nstep_omega*(nstepadfac_omega-1)
+                z_cur, vz_cur= Aphi_to_zvz(A_cur,phi_cur,omega_cur)
+                kwargs['nstep']= nstep_omega
+                kwargs['eps']= 0. # Don't change weights
+                dum= fit_m2m(tout[0],z_cur,vz_cur,omega_new,zsun_m2m,
+                             z_obs,dens_obs,dens_obs_noise,
+                             **kwargs)
+                kwargs['nstep']= nstep
+                kwargs['eps']= eps
+                acc= (numpy.nansum(tQ)\
+                          -numpy.mean(numpy.nansum(dum[1],axis=1)))/2.
+                if acc > numpy.log(numpy.random.uniform()):
+                    omega_m2m= omega_new
+                    tQ= numpy.mean(dum[1],axis=0)
+                    nacc_omega+= 1
+                    # Update phase-space positions
+                    phi_cur+= omega_new*nstep_omega*kwargs.get('step',0.001)
+                    A_now= A_cur
+                    phi_now= phi_cur
+                    z_m2m, vz_m2m= Aphi_to_zvz(A_now,phi_now,omega_m2m)
+            omega_out[ii]= omega_m2m
+        w_out[ii]= tout[0]
+        Q_out[ii]= tQ
+        z_out[ii]= z_m2m
+        vz_out[ii]= vz_m2m
+    out= (w_out,)
+    if fit_zsun: out= out+(zsun_out,)
+    if fit_xnm: out= out+(xnm_out,)    
+    if fit_omega: out= out+(omega_out,)
+    out= out+(Q_out,z_out,vz_out,)
+    if fit_zsun: print("MH acceptance ratio for zsun was %.2f" \
+                           % (nacc_zsun/float(nmh_zsun*nsamples)))
+    if fit_xnm: print("MH acceptance ratio for xnm was %.2f" \
+                           % (nacc_xnm/float(nmh_xnm*nsamples)))
+    if fit_omega: print("MH acceptance ratio for omega was %.2f" \
+                            % (nacc_omega/float(nmh_omega*nsamples)))
+    return out
