@@ -87,6 +87,15 @@ def rewind_nstep_zvz(z_init, vz_init, mass, omega, step, nstep):
 
     return (z_rewind, vz_rewind)
 
+# integrate forward for n step
+
+def forward_nstep_zvz(z_init, vz_init, mass, omega, step, nstep):
+    gforward = wendypy.nbody(
+      z_init, vz_init, mass, -step, omega=omega, approx=True, nleap=1)
+    for ii in range(nstep):
+        z_forward, vz_forward = next(gforward)
+
+    return (z_forward, vz_forward)
 
 
 # Function that returns the difference in z and vz for orbits starting at the 
@@ -701,7 +710,22 @@ def sample_m2m(nsamples,
             # update orbit
             z_m2m = dum_z
             vz_m2m = dum_vz
+        if (fit_zsun and nstepzsun != nstep_omega) or \
+           (fit_xnm and nstep_xnm !=nstep_omega):
+            # Need to compute average obj. function for nstep_omega
+            kwargs['nstep']= nstep_omega
+            kwargs['eps']= 0. # Don't change weights
+            dum_wout, dum_z, dum_vz, dum_Q = fit_m2m(tout[0], \
+              z_m2m,vz_m2m,omega_m2m,zsun_m2m,data_discts, **kwargs)
+            kwargs['nstep']= nstep
+            kwargs['eps']= eps
+            tQ= numpy.mean(dum_Q, axis=0)
+            # Keep track of orbits
+            z_m2m = dum_z
+            vz_m2m = dum_vz
         if fit_omega:
+            kwargs['nstep']= nstep_omega
+            kwargs['eps']= 0. # Don't change weights
             for jj in range(nmh_omega):
                 # get mass
                 mass = numpy.sum(tout[0], axis=1)
@@ -714,34 +738,26 @@ def sample_m2m(nsamples,
                 for kk in range(nstep_omega*nstepadfac_omega):
                     omega_cur= omega_m2m+(omega_new-omega_m2m)\
                         *kk/float(nstep_omega*nstepadfac_omega-1)
-                    z_cur, vz_cur = rewind_zvz(z_cur, vz_cur, mass, omega_m2m,
+                    z_cur, vz_cur = rewind_zvz(z_cur, vz_cur, mass, omega_cur,
                                                step)
-                    A_cur, phi_cur= zvz_to_Aphi(z_cur,vz_cur,omega_cur)
-                    phi_cur-= omega_cur*kwargs.get('step',0.001)
-                    z_cur, vz_cur= Aphi_to_zvz(A_cur,phi_cur,omega_cur)
                 # and forward again!
-                phi_cur+= omega_cur*kwargs.get('step',0.001)\
-                    *nstep_omega*(nstepadfac_omega-1)
-                z_cur, vz_cur= Aphi_to_zvz(A_cur,phi_cur,omega_cur)
-                kwargs['nstep']= nstep_omega
-                kwargs['eps']= 0. # Don't change weights
-                dum= fit_m2m(tout[0],z_cur,vz_cur,omega_new,zsun_m2m,
-                             z_obs,dens_obs,dens_obs_noise,
-                             **kwargs)
-                kwargs['nstep']= nstep
-                kwargs['eps']= eps
-                acc= (numpy.nansum(tQ)\
-                          -numpy.mean(numpy.nansum(dum[1],axis=1)))/2.
+                z_cur, vz_cur = forward_nstep_zvz(z_cur, vz_cur, mass,
+                                omega_cur, step,
+                                nstep_omega*nstepadfac_omega-1)
+                dum_wout, dum_z, dum_vz, dum_Q = fit_m2m(tout[0], \
+                   z_cur,vz_cur,omega_new,zsun_m2m,data_dicts, **kwargs)
+                acc= (numpy.nansum(tQ)
+                      -numpy.mean(numpy.nansum(dum_Q, axis=1)))/2.
                 if acc > numpy.log(numpy.random.uniform()):
                     omega_m2m= omega_new
-                    tQ= numpy.mean(dum[1],axis=0)
+                    tQ= numpy.mean(dum_Q, axis=0)                    
                     nacc_omega+= 1
-                    # Update phase-space positions
-                    phi_cur+= omega_new*nstep_omega*kwargs.get('step',0.001)
-                    A_now= A_cur
-                    phi_now= phi_cur
-                    z_m2m, vz_m2m= Aphi_to_zvz(A_now,phi_now,omega_m2m)
-            omega_out[ii]= omega_m2m
+                # Update phase-space positions
+                z_m2m = dum_z
+                vz_m2m= dum_vz
+        kwargs['nstep']= nstep
+        kwargs['eps']= eps
+        omega_out[ii]= omega_m2m
         w_out[ii]= tout[0]
         Q_out[ii]= tQ
         z_out[ii]= z_m2m
