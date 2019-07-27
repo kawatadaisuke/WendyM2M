@@ -42,13 +42,20 @@ def epanechnikov_kernel_deriv(r,h):
     return out
 
 ################################### OBSERVATIONS ##############################
-### compute density at z_obs
+### compute density at z_obs 
 def compute_dens(z,zsun,z_obs,h_obs,w=None,kernel=epanechnikov_kernel):
     if w is None: w= numpy.ones_like(z)/float(len(z))
     dens= numpy.zeros_like(z_obs)
     for jj,zo in enumerate(z_obs):
         dens[jj]= numpy.nansum(w*kernel(numpy.fabs(zo-z+zsun),h_obs))
     return dens
+### compute number of stars
+def compute_nstar(z,zsun,z_obs,h_obs,w=None,kernel=epanechnikov_kernel):
+    if w is None: w= numpy.ones_like(z)/float(len(z))
+    nstar= numpy.zeros_like(z_obs)
+    for jj,zo in enumerate(z_obs):
+        nstar[jj]= len(z[numpy.fabs(zo-z+zsun)<0.5*h_obs])
+    return nstar
 ### compute_v2
 def compute_v2(z,vz,zsun,z_obs,h_obs,w=None,kernel=epanechnikov_kernel):
     if w is None: w= numpy.ones_like(z)/float(len(z))
@@ -72,6 +79,33 @@ def compute_v(z,vz,zsun,z_obs,h_obs,w=None,kernel=epanechnikov_kernel):
         vm[jj]= numpy.nansum(w*kernel(numpy.fabs(zo-z+zsun),h_obs)*vz)\
             /numpy.nansum(w*kernel(numpy.fabs(zo-z+zsun),h_obs))
     return vm
+### compute median v2 within |z-zo|<h/2
+def compute_medv2(z,vz,zsun,z_obs,h_obs,w=None,kernel=epanechnikov_kernel):
+    if w is None: w= numpy.ones_like(z)/float(len(z))
+    medv2= numpy.zeros_like(z_obs)
+    nmedv2= numpy.zeros_like(z_obs)
+    madv2= numpy.zeros_like(z_obs)    
+    for jj,zo in enumerate(z_obs):
+        nmedv2[jj]= len(vz[numpy.fabs(zo-z+zsun)<0.5*h_obs])
+        medv2[jj]= numpy.median(vz[numpy.fabs(zo-z+zsun)<0.5*h_obs]**2)
+        # median absolute deviation (MAD)
+        madv2[jj]= numpy.median(numpy.fabs( \
+          vz[numpy.fabs(zo-z+zsun)<0.5*h_obs]**2-medv2[jj]))
+    return medv2,nmedv2,madv2
+### compute median v2 within |z-zo|<h/2
+def compute_medv(z,vz,zsun,z_obs,h_obs,w=None,kernel=epanechnikov_kernel):
+    if w is None: w= numpy.ones_like(z)/float(len(z))
+    medv= numpy.zeros_like(z_obs)
+    nmedv= numpy.zeros_like(z_obs)
+    madv= numpy.zeros_like(z_obs)
+    for jj,zo in enumerate(z_obs):
+        nmedv[jj]= len(vz[numpy.fabs(zo-z+zsun)<0.5*h_obs])
+        medv[jj]= numpy.median(vz[numpy.fabs(zo-z+zsun)<0.5*h_obs])
+        # median absolute deviation (MAD)
+        madv[jj]= numpy.median(numpy.fabs( \
+          vz[numpy.fabs(zo-z+zsun)<0.5*h_obs]-medv[jj]))
+    return medv,nmedv,madv
+
 
 
 ################################### M2M PRIOR #################################
