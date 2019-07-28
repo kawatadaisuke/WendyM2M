@@ -16,10 +16,6 @@ Morgan Bennett - bennett at astro dot utoronto dot ca
 
 ## Code
 
-## run_WendyM2M.py
-
- Python code to run Wendy M2M. 
-
 ## WendyM2M_readfile.ipynb
 
  Notebook for testing to read the target disk file and run M2M.
@@ -34,8 +30,19 @@ Morgan Bennett - bennett at astro dot utoronto dot ca
 
 ## wendypy.py
 
- 1D approximate nbody version of Wendy in python. 
+ 1D approximate nbody version of Wendy in python.
 
+## plot_WendyM2M_BB19_GaiaDR2.py
+
+ Python code to plot the results of WendyM2M for the Bennett & Bovy (2019) data.
+
+## run_WendyM2M_BB19_GaiaDR2.py
+
+ Python code to run WendyM2M for the Bennett & Bovy (2019) data.
+
+## WendyM2M_sample_XomegaXnm_rhov2obs_perturbed.ipynb
+
+ Notebook for MCMC sample to evaluate uncertainties of WendyM2M modelling. 
 
 ## WendyM2M_XomegaXnm_rhov2obs_perturbed.ipynb
 

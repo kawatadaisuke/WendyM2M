@@ -63,8 +63,6 @@ with h5py.File(file_posinput, 'r') as f:
     z_vmock = f['z'].value
     vz_vmock = f['vz'].value
 print(' Number of stars for vertical velocity =',len(z_vmock))
-# sample radius limit, 100 pc
-rsamplim = 0.1
 
 ###  Set solar vertical position and velocity
 
@@ -162,12 +160,12 @@ print('zobs=',data_dicts['type'=='dens']['zobs'])
 
 ### set the initial model
 n_m2m= 4000
-sigma_init= 15.0
+sigma_init= 20.0
 h_m2m= 0.05
 # set a guess
 xnm_m2m = 0.0025
-# total surface_mass density  Munit/Lunit(kpc)^2
-totmass_init = 800.0 
+# total surface_mass density  Munit/Lunit(kpc)^2 
+totmass_init = 1500.0 
 print(' initial mass density (Msun/pc^2) =', totmass_init*munit_msun/1.0e6)
 zh_init = sigma_init**2./totmass_init  # Where 2\pi G= 1 so units of zh are ~311 pc
 tdyn = zh_init/sigma_init
@@ -191,9 +189,9 @@ print(' omega(initial)=', omega_m2m)
 
 ### Set M2M parameters
 step= 0.05*tdyn
-nstep= 500
+nstep= 100
 # eps weight, omega, xnm
-eps = [10.0**-2.0, 10.0**-0.0, 10.0**-8.0]
+eps = [10.0**-1.0, 10.0**-0.0, 10.0**-8.0]
 smooth= None #1./step/100.
 st96smooth= False
 mu= 0.
