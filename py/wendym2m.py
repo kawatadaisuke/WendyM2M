@@ -743,7 +743,7 @@ def sample_m2m(nsamples,
                 # and forward again!
                 z_cur, vz_cur = forward_nstep_zvz(z_cur, vz_cur, mass,
                                 omega_cur, step,
-                                nstep_omega*nstepadfac_omega-1)
+                                nstep_omega*nstepadfac_omega)
                 dum_wout, dum_z, dum_vz, dum_Q = fit_m2m(tout[0], \
                    z_cur,vz_cur,omega_new,zsun_m2m,data_dicts, **kwargs)
                 acc= (numpy.nansum(tQ)
@@ -752,12 +752,12 @@ def sample_m2m(nsamples,
                     omega_m2m= omega_new
                     tQ= numpy.mean(dum_Q, axis=0)                    
                     nacc_omega+= 1
-                # Update phase-space positions
-                z_m2m = dum_z
-                vz_m2m= dum_vz
-        kwargs['nstep']= nstep
-        kwargs['eps']= eps
-        omega_out[ii]= omega_m2m
+            # Update phase-space positions
+            z_m2m = dum_z
+            vz_m2m= dum_vz
+            kwargs['nstep']= nstep
+            kwargs['eps']= eps
+            omega_out[ii]= omega_m2m
         w_out[ii]= tout[0]
         Q_out[ii]= tQ
         z_out[ii]= z_m2m

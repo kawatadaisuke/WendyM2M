@@ -134,12 +134,14 @@ v2_final= hom2m.compute_v2(z_m2m,vz_m2m,zsun_true,z_out,h_m2m,w=w_out)
 v_final= hom2m.compute_v(z_m2m,vz_m2m,zsun_true,z_out,h_m2m,w=w_out)
 
 ### Sample w, omega and Xnm
+# default sample step
 step_sam= 0.05*tdyn
-nstep_sam = 100
-eps = [10.0**-2.0, 10.0**0.0, 10.0**-8.0]
+nstep_sam = 1000
+# eps = [10.0**-4.0, 10.0**0.0, 10.0**-8.0]
+eps = [1.0**-2.0, 10.0**0.0, 10.0**-8.0]
 # used for weight sampling only
 eps_sam = eps[0]
-nsamples= 40
+nsamples= 5
 s_low, s_high= 16, -16
 smooth= None #1./step/100.
 st96smooth= False
@@ -188,10 +190,10 @@ else:
 w_sam,xnm_sam, omega_sam, Q_sam,z_sam,vz_sam= out
 
 ### Output the results
-print("#####   Results asfter sampling   #####")
+print("#####   Results after sampling   #####")
 # for test
-s_low=-2
-s_high=2
+s_low=-1
+s_high=1
 #
 print('xnm: best-fit, mean of samples unc.)',xnm_out[-1],numpy.mean(xnm_sam),numpy.std(xnm_sam))
 xnm_m2m = xnm_out[-1]
@@ -203,7 +205,7 @@ dmden_sam = (omega_sam**2/2.0)*densunit_msunpc3
 print(' DM density (Msun/pc^-3), mean and +- unc =', \
       (omega_mean**2/2.0)*densunit_msunpc3, \
       (((omega_mean+omega_std)**2-omega_mean**2)/2.0)*densunit_msunpc3, \
-      ((omega_mean**2-(omega_mean+omega_std)**2)/2.0)*densunit_msunpc3)
+      ((omega_mean**2-(omega_mean-omega_std)**2)/2.0)*densunit_msunpc3)
 omega_m2m = omega_out[-1]
 # pick up first population
 w_samallpop = copy.deepcopy(w_sam)
@@ -225,7 +227,7 @@ v2_final_sam= numpy.empty((nsamples,len(dens_final)))
 v_final_sam= numpy.empty((nsamples,len(dens_final)))
 vz_hist = numpy.empty((nsamples,31))
 for ii in range(nsamples):
-    dens_final_sam[ii]= xnm_m2m*hom2m.compute_dens(z_sam[ii],zsun_true,z_out,h_m2m,w=w_sam[ii])
+    dens_final_sam[ii]= xnm_sam[ii]*hom2m.compute_dens(z_sam[ii],zsun_true,z_out,h_m2m,w=w_sam[ii])
     v2_final_sam[ii]= hom2m.compute_v2(z_sam[ii],vz_sam[ii],zsun_true,z_out,h_m2m,w=w_sam[ii])
     v_final_sam[ii]= hom2m.compute_v(z_sam[ii],vz_sam[ii],zsun_true,z_out,h_m2m,w=w_sam[ii])
     vz_hist[ii], _= numpy.histogram(vz_sam[ii],weights=w_sam[ii], \
@@ -288,7 +290,7 @@ print("Velocity dispersions: obs, fit",numpy.std(vz_vmock),\
 
 # stellar mass distribution
 plt.subplot(2,3,2)
-plt.hist(sfmden_star_sam,bins=5,normed=True,range=(sfmdenmin,sfmdenmax),
+plt.hist(sfmden_star_sam,bins=21,normed=True,range=(sfmdenmin,sfmdenmax),
          histtype='step',color=final_color)
 plt.xlabel(r'$\Sigma_{\rm star}$ (Msun pc$^{-2}$)')
 plt.ylabel(r'$P(\Sigma)$')
@@ -296,7 +298,7 @@ plt.ylabel(r'$P(\Sigma)$')
 
 # DM density distribution
 plt.subplot(2,3,3)
-plt.hist(dmden_sam,bins=5,normed=True, \
+plt.hist(dmden_sam,bins=21,normed=True, \
                     range=(dmdenmin,dmdenmax),
                     histtype='step',color=final_color)
 plt.xlabel(r'$\rho_{\rm DM}$ (Msun pc$^{-3}$)')
