@@ -216,7 +216,8 @@ w_out,omega_out,xnm_out,z_m2m,vz_m2m,Q,wevol,windx= \
 w_out= w_out[:,0]
 
 ### Print Results
-# print(' total mass =', numpy.sum(w_out))
+print('##### M2M fit results #####')
+print(' total mass =', numpy.sum(w_out))
 print(' mass surface density (Msun/pc^2) =', numpy.sum(w_out)*munit_msun/1.0e6)
 print(' omega fit = ',omega_out[-1])
 print(' DM density (Msun/pc^-3) =', (omega_out[-1]**2/2.0)*densunit_msunpc3)
@@ -232,10 +233,15 @@ v2_final= hom2m.compute_v2(z_m2m,vz_m2m,zsun_true,z_out,h_m2m,w=w_out)
 v_final= hom2m.compute_v(z_m2m,vz_m2m,zsun_true,z_out,h_m2m,w=w_out)
 
 ### Save the results in a file
+# tempolary set "true" values
+omegadm_true = omega_m2m
+totmass_true = totmass_init
+zh_true = zh_init
+sigma_true = sigma_init
 
-savefilename='xnmomega_rhov2obs_colid'+str(cid)+'.sav'
-save_pickles(savefilename,w_out,omega_out,xnm_out,z_m2m,vz_m2m,omegadm_true,xnm_true,zsun_true,totmass_true,
-             zh_true,sigma_true,data_dicts,z_mock,vz_mock,v_obs,\
+savefilename='xnmomega_BB19rhov2obs_colid'+str(cid)+'.sav'
+save_pickles(savefilename,w_out,omega_out,xnm_out,z_m2m,vz_m2m,
+             data_dicts,z_pmock,z_vmock,vz_vmock,v_obs,\
              w_init,h_m2m,omega_m2m,xnm_m2m,zsun_m2m,\
              dens_init,v2_init,v_init,\
              nstep,step,tdyn,eps,Q,wevol,windx)
