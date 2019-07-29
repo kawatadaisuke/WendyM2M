@@ -306,7 +306,6 @@ def fit_m2m(w_init,z_init,vz_init,
         if output_zvzevolution:
             zevol = numpy.zeros((output_wevolution,nstep))
             vzevol = numpy.zeros((output_wevolution,nstep))
-        
     # Compute force of change for first iteration
     fcw, delta_m2m_new = \
         force_of_change_weights(w_out,zsun_m2m,z_init,vz_init,
@@ -553,9 +552,10 @@ def sample_m2m(nsamples,
     nstep_xnm= kwargs.pop('nstep_xnm',nstep_zsun*fit_zsun \
                           +500*(1-fit_zsun))
     if fit_xnm:
-        xnm_m2m= kwargs.pop('xnm_m2m',1.0)      
         xnm_out= numpy.empty((nsamples))
         nacc_xnm= 0
+    # get xnm
+    xnm_m2m= kwargs.get('xnm_m2m',1.0)              
     # omega
     fit_omega= kwargs.get('fit_omega',False)
     kwargs['fit_omega']= False # Turn off for weights fits
@@ -568,8 +568,11 @@ def sample_m2m(nsamples,
     if fit_omega: 
         omega_out= numpy.empty((nsamples))
         nacc_omega= 0
+    # extract omega
+    omega_m2m= kwargs.pop('omega_m2m',1.0)      
     # Copy some kwargs that we need to re-use
     nout = 0
+
     for ii,data_dict in enumerate(data_dicts):
         if data_dict['type'].lower() == 'dens':
           dens_obs = copy.deepcopy(data_dict['obs'])
@@ -593,17 +596,19 @@ def sample_m2m(nsamples,
             # Draw new observations
             for jj,data_dict in enumerate(data_dicts):
               if data_dict['type'].lower() == 'dens':
-                data_dicts['type' == 'dens']['obs'] = dens_obs\
+                data_dicts[jj]['obs'] = dens_obs\
                   +numpy.random.normal(size=len(dens_obs))*data_dict['unc']
               elif data_dict['type'].lower() == 'v2':
-                data_dicts['type' == 'v2']['obs'] = v2_obs\
+                data_dicts[jj]['obs'] = v2_obs\
                   +numpy.random.normal(size=len(v2_obs))*data_dict['unc']
               elif data_dict['type'].lower() == 'v':
-                data_dicts['type' == 'v']['obs'] = v_obs\
+                # assuming v2 constraints as well
+                data_dicts[jj]['obs'] = v_obs\
                   +numpy.random.normal(size=len(v_obs))*data_dict['unc']
               else:
                 raise ValueError( \
                   "'type' of measurement in data_dict in sample_m2m not understood")
+              
             tout= fit_m2m(w_init,z_init,vz_init,omega_m2m,zsun_m2m, \
                           data_dicts, **kwargs)
             # Keep track of orbits
@@ -706,6 +711,7 @@ def sample_m2m(nsamples,
                     nacc_xnm+= 1
             kwargs['nstep']= nstep
             kwargs['eps']= eps
+            kwargs['xnm_m2m']= xnm_new            
             xnm_out[ii]= xnm_m2m
             # update orbit
             z_m2m = dum_z
