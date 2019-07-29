@@ -568,8 +568,6 @@ def sample_m2m(nsamples,
     if fit_omega: 
         omega_out= numpy.empty((nsamples))
         nacc_omega= 0
-    # extract omega
-    omega_m2m= kwargs.pop('omega_m2m',1.0)      
     # Copy some kwargs that we need to re-use
     nout = 0
 
@@ -608,7 +606,6 @@ def sample_m2m(nsamples,
               else:
                 raise ValueError( \
                   "'type' of measurement in data_dict in sample_m2m not understood")
-              
             tout= fit_m2m(w_init,z_init,vz_init,omega_m2m,zsun_m2m, \
                           data_dicts, **kwargs)
             # Keep track of orbits
