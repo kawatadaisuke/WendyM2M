@@ -72,7 +72,6 @@ munit_cgs = lunit_cgs**3/(twopigunit_cgs*(tunit_cgs**2))
 munit_msun = munit_cgs/msun_cgs
 densunit_msunpc3 = munit_msun/(lunit_pc**3)
 
-
 ### Read M2M model results
 savefilename= 'xnmomega_BB19rhov2obs_colid'+str(cid)+'.sav'
 if os.path.exists(savefilename):
@@ -116,15 +115,15 @@ densmax = 100.0
 v2min = 0.0
 v2max = 800.0
 # for <v>
-vmin = -3.0
-vmax = 3.0
+vmin = -6.0
+vmax = 6.0
 # for vz histogram
 vzmin = -50.0
 vzmax = 50.0
 sfmdenmin = 0.0
-sfmdenmax = 60.0
+sfmdenmax = 50.0
 dmdenmin = 0.0
-dmdenmax = 0.05
+dmdenmax = 0.03
 
 ### Set final values
 z_out= numpy.linspace(zmin, zmax, 101)
@@ -136,12 +135,12 @@ v_final= hom2m.compute_v(z_m2m,vz_m2m,zsun_true,z_out,h_m2m,w=w_out)
 ### Sample w, omega and Xnm
 # default sample step
 step_sam= 0.05*tdyn
-nstep_sam = 1000
+nstep_sam = 100
 # eps = [10.0**-4.0, 10.0**0.0, 10.0**-8.0]
 eps = [1.0**-2.0, 10.0**0.0, 10.0**-8.0]
 # used for weight sampling only
 eps_sam = eps[0]
-nsamples= 5
+nsamples= 50 
 s_low, s_high= 16, -16
 smooth= None #1./step/100.
 st96smooth= False
@@ -155,12 +154,12 @@ fit_omega = True
 # not fraction, but 1 sigma size for step of MCMC
 # note omega's scale is 40 or so
 sig_omega = 0.1
-nmh_omega = 10
+nmh_omega = 20
 fit_xnm = True
 # not fraction, but 1 sigma size for step of MCMC
 # note Xnm scale is aroud 0.002
 sig_xnm = 0.00001
-nmh_xnm = 10
+nmh_xnm = 20
 prior= 'entropy'
 use_v2=True
 # these will not be used
@@ -192,8 +191,8 @@ w_sam,xnm_sam, omega_sam, Q_sam,z_sam,vz_sam= out
 ### Output the results
 print("#####   Results after sampling   #####")
 # for test
-s_low=-1
-s_high=1
+s_low=-8
+s_high=8
 #
 print('xnm: best-fit, mean of samples unc.)',xnm_out[-1],numpy.mean(xnm_sam),numpy.std(xnm_sam))
 xnm_m2m = xnm_out[-1]
@@ -231,7 +230,7 @@ for ii in range(nsamples):
     v2_final_sam[ii]= hom2m.compute_v2(z_sam[ii],vz_sam[ii],zsun_true,z_out,h_m2m,w=w_sam[ii])
     v_final_sam[ii]= hom2m.compute_v(z_sam[ii],vz_sam[ii],zsun_true,z_out,h_m2m,w=w_sam[ii])
     vz_hist[ii], _= numpy.histogram(vz_sam[ii],weights=w_sam[ii], \
-                                    normed=True,bins=31,range=[vmin,vmax])    
+                                    normed=True,bins=31,range=[vzmin,vzmax])    
 dens_final_sam_sorted= numpy.sort(dens_final_sam,axis=0)
 v2_final_sam_sorted= numpy.sort(v2_final_sam,axis=0)
 v_final_sam_sorted= numpy.sort(v_final_sam,axis=0)
@@ -267,7 +266,7 @@ plt.fill_between(z_out, v2_final_sam_sorted[s_low], v2_final_sam_sorted[s_high],
 plt.subplot(2,3,5)
 bovy_plot.bovy_plot(z_out,v_init,'-',gcf=True,
                    xlabel=r'$\tilde{z}$',ylabel=r'$\nu_{\mathrm{obs}}(\tilde{z})$',
-                   xrange=[zmin, zmax],yrange=[vzmin,vzmax])
+                   xrange=[zmin, zmax],yrange=[vmin,vmax])
 bovy_plot.bovy_plot(z_obs,v_obs,'o',overplot=True)
 plt.errorbar(z_obs,v_obs,yerr=v_obs_noise,marker='None',ls='none',color=sns.color_palette()[1])
 plt.fill_between(z_out, v_final_sam_sorted[s_low], v_final_sam_sorted[s_high],color='0.65',zorder=0)
@@ -282,7 +281,7 @@ h,e,p= plt.hist(vz_m2m,weights=w_out,histtype='step',lw=2.,normed=True, \
                 bins=31,range=(vzmin,vzmax),zorder=1,color=final_color)
 plt.fill_between(0.5*(e+numpy.roll(e,1))[1:],vz_hist_sorted[s_low],vz_hist_sorted[s_high],color='0.65',zorder=0,step='mid')
 plt.xlim(vzmin, vzmax)
-plt.ylim(0.,0.3)
+plt.ylim(0.,0.05)
 plt.xlabel(r'$v_z$')
 plt.ylabel(r'$p(v_z)$')
 print("Velocity dispersions: obs, fit",numpy.std(vz_vmock),\
@@ -290,7 +289,7 @@ print("Velocity dispersions: obs, fit",numpy.std(vz_vmock),\
 
 # stellar mass distribution
 plt.subplot(2,3,2)
-plt.hist(sfmden_star_sam,bins=21,normed=True,range=(sfmdenmin,sfmdenmax),
+plt.hist(sfmden_star_sam,bins=31,normed=True,range=(sfmdenmin,sfmdenmax),
          histtype='step',color=final_color)
 plt.xlabel(r'$\Sigma_{\rm star}$ (Msun pc$^{-2}$)')
 plt.ylabel(r'$P(\Sigma)$')
@@ -298,7 +297,7 @@ plt.ylabel(r'$P(\Sigma)$')
 
 # DM density distribution
 plt.subplot(2,3,3)
-plt.hist(dmden_sam,bins=21,normed=True, \
+plt.hist(dmden_sam,bins=31,normed=True, \
                     range=(dmdenmin,dmdenmax),
                     histtype='step',color=final_color)
 plt.xlabel(r'$\rho_{\rm DM}$ (Msun pc$^{-3}$)')
