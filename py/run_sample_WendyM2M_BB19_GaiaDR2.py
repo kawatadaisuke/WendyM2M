@@ -215,6 +215,9 @@ totmass_sam = numpy.sum(w_sam[:,:], axis=1)
 sfmden_star_sam = totmass_sam*munit_msun/(lunit_pc**2)
 print(' Stellar mass surface density (Msun/pc^2) mean, unc =', \
       numpy.mean(sfmden_star_sam),numpy.std(sfmden_star_sam))
+# print(' size of sample stellar mass and DM density=', \
+#       numpy.shape(sfmden_star_sam), numpy.shape(dmden_sam))
+
 # final z profiles
 z_out= numpy.linspace(zmin, zmax, 101)
 dens_final= xnm_m2m*hom2m.compute_dens(z_m2m,zsun_true,z_out,h_m2m,w=w_out)
@@ -236,18 +239,36 @@ v2_final_sam_sorted= numpy.sort(v2_final_sam,axis=0)
 v_final_sam_sorted= numpy.sort(v_final_sam,axis=0)
 w_sam_sorted= numpy.sort(w_sam,axis=0)
 vz_hist_sorted= numpy.sort(vz_hist,axis=0)
+# |z| vs. rho_total
+zabs_out=numpy.linspace(0.0, zmax, 50)
+sfmden_z_tot_sam = numpy.zeros((nsamples,len(zabs_out)))
+sfmden_z_star_sam = numpy.zeros((nsamples,len(zabs_out)))
+sfmden_z_dm_sam = numpy.zeros((nsamples,len(zabs_out)))
+zabs_sam = numpy.abs(z_sam[:, :])
+for ii in range(nsamples):
+  for jj,zlim in enumerate(zabs_out):
+    indx = numpy.where(zabs_sam[ii, :]<zlim)
+    w_selp = w_sam[ii, indx]
+    sfmden_z_star_sam[ii, jj] = numpy.sum(w_selp)*munit_msun/(lunit_pc**2)
+  sfmden_z_dm_sam[ii,:] = zabs_out*(omega_sam[ii]**2/2.0) \
+    *densunit_msunpc3*lunit_pc
+  sfmden_z_tot_sam[ii,:] = sfmden_z_star_sam[ii,:]+sfmden_z_dm_sam[ii,:]
+
+sfmden_z_star_sam_sorted= numpy.sort(sfmden_z_star_sam,axis=0)
+sfmden_z_dm_sam_sorted= numpy.sort(sfmden_z_dm_sam,axis=0)
+sfmden_z_tot_sam_sorted= numpy.sort(sfmden_z_tot_sam,axis=0)
 
 ### plot
 bovy_plot.bovy_print(axes_labelsize=19.,text_fontsize=14., \
                      xtick_labelsize=15.,ytick_labelsize=15., \
-                     fig_height=6.,fig_width=15.)
+                     fig_height=10.,fig_width=15.)
 # density
 plt.subplot(2,3,1)
 bovy_plot.bovy_plot(z_out,dens_init,'-',semilogy=True,color=init_color,
                    xlabel=r'$\tilde{z}$',ylabel=r'$\nu_{\mathrm{obs}}(\tilde{z})$',
                    xrange=[zmin, zmax],yrange=[densmin,densmax],gcf=True)
 bovy_plot.bovy_plot(z_obs,dens_obs,'o',semilogy=True,overplot=True,color=constraint_color)
-bovy_plot.bovy_plot(z_out,dens_final,'-',semilogy=True,overplot=True,zorder=0,color=final_color)
+# bovy_plot.bovy_plot(z_out,dens_final,'-',semilogy=True,overplot=True,zorder=0,color=final_color)
 plt.errorbar(z_obs,dens_obs,yerr=dens_obs_noise,marker='None',ls='none',color=constraint_color)
 plt.fill_between(z_out,dens_final_sam_sorted[s_low],dens_final_sam_sorted[s_high],color='0.65',zorder=0)
 plt.yscale('log',nonposy='clip')
@@ -258,7 +279,7 @@ bovy_plot.bovy_plot(z_out,v2_init,'-',color=init_color,
                     xlabel=r'$\tilde{z}$',ylabel=r'$\langle v_z^2\rangle(\tilde{z})$',
                     xrange=[zmin, zmax],yrange=[v2min,v2max],gcf=True)
 bovy_plot.bovy_plot(z_obs,v2_obs,'o',overplot=True,color=constraint_color)                    
-bovy_plot.bovy_plot(z_out,v2_final,'-',overplot=True,zorder=0,color=final_color)
+# bovy_plot.bovy_plot(z_out,v2_final,'-',overplot=True,zorder=0,color=final_color)
 plt.errorbar(z_obs,v2_obs,yerr=v2_obs_noise,marker='None',ls='none',color=constraint_color)
 plt.fill_between(z_out, v2_final_sam_sorted[s_low], v2_final_sam_sorted[s_high],color='0.65',zorder=0)
 
@@ -269,7 +290,7 @@ bovy_plot.bovy_plot(z_out,v_init,'-',gcf=True,
                    xrange=[zmin, zmax],yrange=[vmin,vmax])
 bovy_plot.bovy_plot(z_obs,v_obs,'o',overplot=True)
 plt.errorbar(z_obs,v_obs,yerr=v_obs_noise,marker='None',ls='none',color=sns.color_palette()[1])
-plt.fill_between(z_out, v_final_sam_sorted[s_low], v_final_sam_sorted[s_high],color='0.65',zorder=0)
+# plt.fill_between(z_out, v_final_sam_sorted[s_low], v_final_sam_sorted[s_high],color='0.65',zorder=0)
 bovy_plot.bovy_plot(z_out,v_final,'-',overplot=True,zorder=0,color=final_color)
 
 # v histogram
@@ -289,19 +310,25 @@ print("Velocity dispersions: obs, fit",numpy.std(vz_vmock),\
 
 # stellar mass distribution
 plt.subplot(2,3,2)
-plt.hist(sfmden_star_sam,bins=31,normed=True,range=(sfmdenmin,sfmdenmax),
-         histtype='step',color=final_color)
+plt.scatter(sfmden_star_sam,dmden_sam)
 plt.xlabel(r'$\Sigma_{\rm star}$ (Msun pc$^{-2}$)')
-plt.ylabel(r'$P(\Sigma)$')
+plt.ylabel(r'$\rho_{\rm DM}$ (Msun pc$^{-3}$)')
          
 
 # DM density distribution
 plt.subplot(2,3,3)
-plt.hist(dmden_sam,bins=31,normed=True, \
-                    range=(dmdenmin,dmdenmax),
-                    histtype='step',color=final_color)
-plt.xlabel(r'$\rho_{\rm DM}$ (Msun pc$^{-3}$)')
-plt.ylabel(r'$P(\rho)$')
+plt.fill_between(zabs_out,sfmden_z_star_sam_sorted[s_low], \
+                 sfmden_z_star_sam_sorted[s_high], \
+                 color='b',alpha=0.5,zorder=0)
+plt.fill_between(zabs_out,sfmden_z_dm_sam_sorted[s_low], \
+                 sfmden_z_dm_sam_sorted[s_high], \
+                 color='r',alpha=0.5,zorder=0)
+plt.fill_between(zabs_out,sfmden_z_tot_sam_sorted[s_low], \
+                 sfmden_z_tot_sam_sorted[s_high], \
+                 color='0.65',alpha=0.5,zorder=0)
+plt.xlabel(r'$|z|$ (kpc)')
+plt.ylabel(r'$\rho$ (Msun pc$^{-3}$)')
+
 
 plt.tight_layout()
 bovy_plot.bovy_end_print('sample_m2m_results.jpg')
