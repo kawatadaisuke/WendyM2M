@@ -56,7 +56,7 @@ def _nbody_approx(x,v,m,dt,nleap,omega=None,twopiG=1.):
     """
     # run approximate solver
     if omega is None:
-        omega2= -1.
+        omega2= 0.0
     else:
         omega2= omega**2.
     m = twopiG*copy.copy(m)
