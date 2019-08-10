@@ -56,7 +56,7 @@ def _nbody_approx(x,v,m,dt,nleap,omega=None,twopiG=1.):
     """
     # run approximate solver
     if omega is None:
-        omega2= 0.0
+        omega2= -1.0
     else:
         omega2= omega**2.
     m = twopiG*copy.copy(m)
@@ -79,17 +79,20 @@ def _nbody_approx(x,v,m,dt,nleap,omega=None,twopiG=1.):
       yield (x,v)
 
 def _nbody_force(N, x, m, mtot, omega2):
-  # sort
-  indx = numpy.argsort(x, kind='stable')
-  mord = m[indx]
-  cumulmass = numpy.zeros(N)
-  cumulmass[indx] = numpy.cumsum(mord)
-  revcumulmass = mtot-cumulmass
-  cumulmass -= m
-  # for ii in range(10):
-  #  print('i, x, cm, rcm=', indx[ii], x[indx[ii]], cumulmass[indx[ii]],
-  #        revcumulmass[indx[ii]])
+    # sort
+    indx = numpy.argsort(x, kind='stable')
+    mord = m[indx]
+    cumulmass = numpy.zeros(N)
+    cumulmass[indx] = numpy.cumsum(mord)
+    revcumulmass = mtot-cumulmass
+    cumulmass -= m
+    # for ii in range(10):
+    #  print('i, x, cm, rcm=', indx[ii], x[indx[ii]], cumulmass[indx[ii]],
+    #        revcumulmass[indx[ii]])
 
-  a = revcumulmass-cumulmass-omega2*x
+    if omega2 <=0.0:
+      a = revcumulmass-cumulmass
+    else:
+      a = revcumulmass-cumulmass-omega2*x
 
-  return a
+    return a
