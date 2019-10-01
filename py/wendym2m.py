@@ -702,6 +702,9 @@ def sample_m2m(nsamples,
                    z_m2m,vz_m2m,omega_m2m,zsun_m2m,data_dicts, **kwargs)
                 acc= (numpy.nansum(tQ)
                       -numpy.mean(numpy.nansum(dum_Q, axis=1)))/2.
+                
+#                print('Xnm old, new, acc=',xnm_m2m,xnm_new,acc)
+                
                 if acc > numpy.log(numpy.random.uniform()):
                     xnm_m2m= xnm_new
                     tQ= numpy.mean(dum_Q, axis=0)
@@ -749,6 +752,9 @@ def sample_m2m(nsamples,
                                 nstep_omega*nstepadfac_omega)
                 dum_wout, dum_z, dum_vz, dum_Q = fit_m2m(tout[0], \
                    z_cur,vz_cur,omega_new,zsun_m2m,data_dicts, **kwargs)
+                
+#                print('omega old, new, acc=',omega_m2m,omega_new,acc)
+                
                 acc= (numpy.nansum(tQ)
                       -numpy.mean(numpy.nansum(dum_Q, axis=1)))/2.
                 if acc > numpy.log(numpy.random.uniform()):

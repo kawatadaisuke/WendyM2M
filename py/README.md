@@ -14,6 +14,23 @@ Jason Hunt - jason dot hunt at utoronto dot ca
 
 Morgan Bennett - bennett at astro dot utoronto dot ca
 
+## How To
+
+### Analysis of the Gaia DR2 data
+
+Running M2M modelling, Unit normalisation: 2 pi G= L (kpc) = V (km/s) = 1
+
+> python run_WendyM2M_BB19_GaiaDR2.py
+
+MCMC sampling
+
+> python run_sample_WendyM2M_BB19_GaiaDR2.py
+
+### Generating mock data of a perturbed disk and applying M2M
+
+WendyM2M_XomegaXnm_rhov2obs_perturbed.ipynb
+
+
 ## Code
 
 ## WendyM2M_readfile.ipynb
@@ -32,13 +49,14 @@ Morgan Bennett - bennett at astro dot utoronto dot ca
 
  1D approximate nbody version of Wendy in python.
 
-## plot_WendyM2M_BB19_GaiaDR2.py
-
- Python code to plot the results of WendyM2M for the Bennett & Bovy (2019) data.
-
 ## run_WendyM2M_BB19_GaiaDR2.py
 
  Python code to run WendyM2M for the Bennett & Bovy (2019) data.
+
+## run_sample_WendyM2M_BB19_GaiaDR2.py
+
+ Python code to run MCMC sampling from the result of run_WendyM2M_BB19_GaiaDR2.py.
+
 
 ## WendyM2M_sample_XomegaXnm_rhov2obs_perturbed.ipynb
 
