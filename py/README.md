@@ -28,8 +28,11 @@ MCMC sampling
 
 ### Generating mock data of a perturbed disk and applying M2M
 
-WendyM2M_XomegaXnm_rhov2obs_perturbed.ipynb
+run_WendyM2M_perturbed.py
 
+#### notebook version
+
+WendyM2M_XomegaXnm_rhov2obs_perturbed.ipynb
 
 ## Code
 
@@ -57,6 +60,9 @@ WendyM2M_XomegaXnm_rhov2obs_perturbed.ipynb
 
  Python code to run MCMC sampling from the result of run_WendyM2M_BB19_GaiaDR2.py.
 
+## run_WendyM2M_sample_XomegaXnm_rhov2obs_perturbed.py
+
+ Python code to run the same model as WendyM2M_sample_XomegaXnm_rhov2obs_perturbed for both omega and Xnm fitting. 
 
 ## WendyM2M_sample_XomegaXnm_rhov2obs_perturbed.ipynb
 
