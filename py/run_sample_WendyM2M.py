@@ -84,7 +84,7 @@ h_def = 0.1
 print(' default h =', h_def)
 
 ### Read M2M model results
-if obs_data == 'mock_stable'
+if obs_data == 'mock_stable':
   savefilename= 'm2m_results_stable_mock.sav'
 elif obs_data == 'mock_perturbed':
   savefilename= 'm2m_results_perturbed_mock.sav'
@@ -209,7 +209,7 @@ print(' mu, h_m2m=', mu, h_m2m)
 
 if obs_data=='mock_stable':
     savefilename= 'sam_stable_mock.sav'  
-elif obs_data='mock_perturbed':  
+elif obs_data=='mock_perturbed':  
     savefilename= 'sam_perturbed_mock.sav'
 else:
     savefilename= 'sam_wxnmomega_BB19rhov2obs_colid'+str(cid)+'.sav'
@@ -397,7 +397,7 @@ bovy_plot.bovy_plot(sfmden_star_sam,dmden_sam,'o', color=final_color, \
                     xrange=[43.0, 48.0], yrange=[0.0, 0.03], gcf=True)
 # bovy_plot.bovy_plot(sfmden_true,dmden_true,'o',overplot=True)
 # print(' True values star dm =', sfmden_true, dmden_true)
-if obs_data=='mock_stable' or obs_data='mock_perturbed':
+if obs_data=='mock_stable' or obs_data=='mock_perturbed':
   plt.scatter(sfmden_true, dmden_true,marker='*')
 
 
