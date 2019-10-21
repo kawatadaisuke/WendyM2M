@@ -1,14 +1,12 @@
 
 #
-# Sample WendyM2M for BB19 Gaia DR2 data
-#
-# Read output from run_WendyM2M_BB19_GaiaDR2.py
-# xnmomega_BB19rhov2obs_colid?.sav
+# Sample WendyM2M for mock data and BB19 Gaia DR2 data
 #
 # sample both omega and Xnm
 #
 
 import os
+import sys
 import numpy
 from scipy.misc import logsumexp
 import tqdm
@@ -52,6 +50,13 @@ import copy
 matplotlib.use('Agg')
 numpy.random.seed(2)
 
+### set the model results
+obs_data = 'mock_stable'
+# obs_data = 'mock_perturbed'
+# obs_data = 'BB19_GDR2'
+
+print(' target observational data =', obs_data)
+
 ### Colour ID
 cid = 0
 
@@ -72,8 +77,21 @@ munit_cgs = lunit_cgs**3/(twopigunit_cgs*(tunit_cgs**2))
 munit_msun = munit_cgs/msun_cgs
 densunit_msunpc3 = munit_msun/(lunit_pc**3)
 
+### computation parameters
+dttdyn = 0.01    # time step is set with dt = dttdyn*tdyn
+print(' time step set ', dttdyn,' x tdyn')
+h_def = 0.1
+print(' default h =', h_def)
+
 ### Read M2M model results
-savefilename= 'xnmomega_BB19rhov2obs_colid'+str(cid)+'.sav'
+if obs_data == 'mock_stable'
+  savefilename= 'm2m_results_stable_mock.sav'
+elif obs_data == 'mock_perturbed':
+  savefilename= 'm2m_results_perturbed_mock.sav'
+else:
+  savefilename= 'xnmomega_BB19rhov2obs_colid'+str(cid)+'.sav'
+print(' reading M2M fit results ',savefilename)
+
 if os.path.exists(savefilename):
     with open(savefilename,'rb') as savefile:
         out= (pickle.load(savefile),)
@@ -82,11 +100,23 @@ if os.path.exists(savefilename):
                 out= out+(pickle.load(savefile),)
             except EOFError:
                 break
-    w_out,omega_out,xnm_out,z_m2m,vz_m2m,zsun_true,vzsun_true, \
+    if obs_data=='mock_stable' or obs_data=='mock_perturbed':
+      w_out,omega_out,xnm_out,z_m2m,vz_m2m,zsun_true, \
+             vzsun_true,data_dicts,z_mock,vz_mock,v_obs,v_obs_noise, \
+             w_init,h_m2m,omega_m2m,xnm_m2m,zsun_m2m,\
+             dens_init,v2_init,v_init,\
+             h_obs,xnm_true,omegadm_true,totmass_true,zh_true,sigma_true, \
+             nstep,step,tdyn,skipomega,skipxnm,dttdyn,eps,Q,wevol,windx = out
+      vz_vmock = vz_mock
+    else:
+      w_out,omega_out,xnm_out,z_m2m,vz_m2m,zsun_true,vzsun_true, \
       data_dicts,z_pmock,z_vmock,vz_vmock,v_obs,v_obs_noise, \
       w_init,h_m2m,omega_m2m,xnm_m2m,zsun_m2m,dens_init,v2_init,v_init, \
       nstep,step,tdyn,eps,Q,wevol,windx = out
 
+if h_m2m!=h_def:
+  print('Error h_m used =', h_m2m,' but h_def =', h_def)
+  sys.exit()
 
 for jj,data_dict in enumerate(data_dicts):
     if data_dict['type'].lower() == 'dens':
@@ -99,6 +129,11 @@ for jj,data_dict in enumerate(data_dicts):
         
 ### Test Output M2M results
 print('##### M2M model results #####')
+if obs_data=='mock_stable' or obs_data=='mock_perturbed':
+  print(' total mass fit, true=', numpy.sum(w_out), totmass_true)
+  print(' omega fit, true = ',omega_out[-1], omegadm_true)
+  print(' Xnm fit, true= ', xnm_out[-1], xnm_true)
+  
 print(' total mass =', numpy.sum(w_out))
 print(' mass surface density (Msun/pc^2) =', numpy.sum(w_out)*munit_msun/1.0e6)
 print(' omega fit = ',omega_out[-1])
@@ -111,7 +146,7 @@ print("Velocity dispersions:",\
 zmin = -1.1
 zmax = 1.1
 densmin = 0.1
-densmax = 100.0
+densmax = 10.0
 v2min = 0.0
 v2max = 800.0
 # for <v>
@@ -134,18 +169,19 @@ v_final= hom2m.compute_v(z_m2m,vz_m2m,zsun_true,z_out,h_m2m,w=w_out)
 
 ### Sample w, omega and Xnm
 # default sample step
-step_sam= 0.05*tdyn
+step_sam= dttdyn*tdyn
 nstep_sam = 100
-# eps = [10.0**-4.0, 10.0**0.0, 10.0**-8.0]
-eps = [1.0**-2.0, 10.0**0.0, 10.0**-8.0]
+eps = [10.0**1.0, 10.0**2.5, 10.0**-9.0]
+print('M2M sample parameters: nstep_sam, eps =', nstep_sam, eps)
 # used for weight sampling only
 eps_sam = eps[0]
 nsamples= 50 
 s_low, s_high= 16, -16
+print(' Nsample =', nsamples)
 smooth= None #1./step/100.
 st96smooth= False
 mu= 0.0
-h_m2m= 0.1
+h_m2m= h_def
 omega_m2m= omega_out[-1]
 zsun_m2m= zsun_true
 xnm_m2m = xnm_out[-1]
@@ -153,19 +189,32 @@ fit_zsun = False
 fit_omega = True
 # not fraction, but 1 sigma size for step of MCMC
 # note omega's scale is 40 or so
-sig_omega = 0.1
-nmh_omega = 20
+sig_omega = 30.4*1.0e-3
+nmh_omega = 5
 fit_xnm = True
 # not fraction, but 1 sigma size for step of MCMC
 # note Xnm scale is aroud 0.002
-sig_xnm = 0.00001
-nmh_xnm = 20
+sig_xnm = 0.002*1.0e-3
+nmh_xnm = 5
 prior= 'entropy'
 use_v2=True
 # these will not be used
 skipomega= 10
 skipxnm = 100
-savefilename= 'sam_wxnmomega_BB19rhov2obs_colid'+str(cid)+'.sav'
+
+print('skipomega,skipxnm =', skipomega, skipxnm)
+print(' ft omega, xnm =', fit_omega, fit_xnm)
+print(' smooth, st96smooth, prior, use_v2=',smooth, st96smooth, prior, use_v2)
+print(' mu, h_m2m=', mu, h_m2m)
+
+if obs_data=='mock_stable':
+    savefilename= 'sam_stable_mock.sav'  
+elif obs_data='mock_perturbed':  
+    savefilename= 'sam_perturbed_mock.sav'
+else:
+    savefilename= 'sam_wxnmomega_BB19rhov2obs_colid'+str(cid)+'.sav'
+print(' check if there is sample results file ',savefilename)
+
 if os.path.exists(savefilename):
     with open(savefilename,'rb') as savefile:
         out= (pickle.load(savefile),)
@@ -194,17 +243,10 @@ print("#####   Results after sampling   #####")
 s_low=-8
 s_high=8
 #
-print('xnm: best-fit, mean of samples unc.)',xnm_out[-1],numpy.mean(xnm_sam),numpy.std(xnm_sam))
 xnm_m2m = xnm_out[-1]
 omega_mean = numpy.mean(omega_sam)
 omega_std = numpy.std(omega_sam)
-print('omega: best-fit, mean of samples unc.)',omega_out[-1],omega_mean, \
-      omega_std)
 dmden_sam = (omega_sam**2/2.0)*densunit_msunpc3
-print(' DM density (Msun/pc^-3), mean and +- unc =', \
-      (omega_mean**2/2.0)*densunit_msunpc3, \
-      (((omega_mean+omega_std)**2-omega_mean**2)/2.0)*densunit_msunpc3, \
-      ((omega_mean**2-(omega_mean-omega_std)**2)/2.0)*densunit_msunpc3)
 omega_m2m = omega_out[-1]
 # pick up first population
 w_samallpop = copy.deepcopy(w_sam)
@@ -213,7 +255,30 @@ w_sam = copy.deepcopy(w_samallpop[:, :, 0])
 totmass_sam = numpy.sum(w_sam[:,:], axis=1)
 # surface mass density of stars
 sfmden_star_sam = totmass_sam*munit_msun/(lunit_pc**2)
-print(' Stellar mass surface density (Msun/pc^2) mean, unc =', \
+
+if obs_data=='mock_stable' or mock_data=='mock_perturbed':
+  print('xnm: true, initial, best-fit, mean of samples, unc.=',xnm_true, \
+        xnm_out[-1],numpy.mean(xnm_sam),numpy.std(xnm_sam))
+  print('omega: true, best-fit, initial, mean of samples, unc.=',omegadm_true, \
+        omega_out[-1],omega_mean,omega_std)
+  dmden_true = (omegadm_true**2/2.0)*densunit_msunpc3
+  print(' DM density (Msun/pc^-3), true, mean  +- unc =', dmden_true, \
+      (omega_mean**2/2.0)*densunit_msunpc3, \
+      (((omega_mean+omega_std)**2-omega_mean**2)/2.0)*densunit_msunpc3, \
+      ((omega_mean**2-(omega_mean-omega_std)**2)/2.0)*densunit_msunpc3)
+  sfmden_true = totmass_true*munit_msun/(lunit_pc**2)
+  print(' Stellar mass surface density (Msun/pc^2) true, mean, unc =', \
+        sfmden_true,
+        numpy.mean(sfmden_star_sam),numpy.std(sfmden_star_sam))
+else: 
+  print('xnm: best-fit, mean of samples unc.)',xnm_out[-1],numpy.mean(xnm_sam),numpy.std(xnm_sam))
+  print('omega: best-fit, mean of samples unc.)',omega_out[-1],omega_mean, \
+      omega_std)
+  print(' DM density (Msun/pc^-3), mean and +- unc =', \
+      (omega_mean**2/2.0)*densunit_msunpc3, \
+      (((omega_mean+omega_std)**2-omega_mean**2)/2.0)*densunit_msunpc3, \
+      ((omega_mean**2-(omega_mean-omega_std)**2)/2.0)*densunit_msunpc3)
+  print(' Stellar mass surface density (Msun/pc^2) mean, unc =', \
       numpy.mean(sfmden_star_sam),numpy.std(sfmden_star_sam))
 # print(' size of sample stellar mass and DM density=', \
 #       numpy.shape(sfmden_star_sam), numpy.shape(dmden_sam))
@@ -233,7 +298,7 @@ for ii in range(nsamples):
     v2_final_sam[ii]= hom2m.compute_v2(z_sam[ii],vz_sam[ii],zsun_true,z_out,h_m2m,w=w_sam[ii])
     v_final_sam[ii]= hom2m.compute_v(z_sam[ii],vz_sam[ii],zsun_true,z_out,h_m2m,w=w_sam[ii])
     vz_hist[ii], _= numpy.histogram(vz_sam[ii],weights=w_sam[ii], \
-                                    normed=True,bins=31,range=[vzmin,vzmax])    
+                                    density=True,bins=31,range=[vzmin,vzmax]) 
 dens_final_sam_sorted= numpy.sort(dens_final_sam,axis=0)
 v2_final_sam_sorted= numpy.sort(v2_final_sam,axis=0)
 v_final_sam_sorted= numpy.sort(v_final_sam,axis=0)
@@ -241,6 +306,21 @@ w_sam_sorted= numpy.sort(w_sam,axis=0)
 vz_hist_sorted= numpy.sort(vz_hist,axis=0)
 # |z| vs. rho_total
 zabs_out=numpy.linspace(0.0, zmax, 50)
+if obs_data=='mock_stable' or obs_data=='mock_perturbed':
+  # set true mass profile
+  sfmden_z_tot_true = numpy.zeros_like(zabs_out)
+  sfmden_z_star_true = numpy.zeros_like(zabs_out)
+  sfmden_z_dm_true = numpy.zeros_like(zabs_out)
+  # weight for mock
+  m_mock = totmass_true/len(z_mock)
+  print(' mock data weight =',m_mock)
+  for jj,zlim in enumerate(zabs_out):
+    indx = numpy.where(z_mock<zlim)
+    sfmden_z_star_true[jj] = m_mock*len(z_mock[indx])*munit_msun/(lunit_pc**2)
+  sfmden_z_dm_true = zabs_out*(omegadm_true**2/2.0) \
+    *densunit_msunpc3*lunit_pc
+  sfmden_z_tot_strue = sfmden_z_star_true+sfmden_z_dm_true
+
 sfmden_z_tot_sam = numpy.zeros((nsamples,len(zabs_out)))
 sfmden_z_star_sam = numpy.zeros((nsamples,len(zabs_out)))
 sfmden_z_dm_sam = numpy.zeros((nsamples,len(zabs_out)))
@@ -310,10 +390,16 @@ print("Velocity dispersions: obs, fit",numpy.std(vz_vmock),\
 
 # stellar mass distribution
 plt.subplot(2,3,2)
-plt.scatter(sfmden_star_sam,dmden_sam)
-plt.xlabel(r'$\Sigma_{\rm star}$ (Msun pc$^{-2}$)')
-plt.ylabel(r'$\rho_{\rm DM}$ (Msun pc$^{-3}$)')
-         
+# plt.scatter(sfmden_star_sam,dmden_sam,s='o')
+bovy_plot.bovy_plot(sfmden_star_sam,dmden_sam,'o', color=final_color, \
+                    xlabel=r'$\Sigma_{\rm star}$ (Msun pc$^{-2}$)', \
+                    ylabel=r'$\rho_{\rm DM}$ (Msun pc$^{-3}$)', \
+                    xrange=[43.0, 48.0], yrange=[0.0, 0.03], gcf=True)
+# bovy_plot.bovy_plot(sfmden_true,dmden_true,'o',overplot=True)
+# print(' True values star dm =', sfmden_true, dmden_true)
+if obs_data=='mock_stable' or obs_data='mock_perturbed':
+  plt.scatter(sfmden_true, dmden_true,marker='*')
+
 
 # DM density distribution
 plt.subplot(2,3,3)
@@ -326,6 +412,7 @@ plt.fill_between(zabs_out,sfmden_z_dm_sam_sorted[s_low], \
 plt.fill_between(zabs_out,sfmden_z_tot_sam_sorted[s_low], \
                  sfmden_z_tot_sam_sorted[s_high], \
                  color='0.65',alpha=0.5,zorder=0)
+plt.plot(zabs_out,sfmden_z_tot_true)
 plt.xlabel(r'$|z|$ (kpc)')
 plt.ylabel(r'$\rho$ (Msun pc$^{-3}$)')
 
