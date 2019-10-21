@@ -46,6 +46,11 @@ import copy
 matplotlib.use('Agg')
 numpy.random.seed(2)
 
+### Options
+Add_perturbation = True
+
+print(' Add Perturbation = ', Add_perturbation)
+
 ### plot range
 zmin = -1.1
 zmax = 1.1
@@ -80,8 +85,6 @@ densunit_msunpc3 = munit_msun/(lunit_pc**3)
 ### computation parameters
 dttdyn = 0.01    # time step is set with dt = dttdyn*tdyn
 print(' time step set ', dttdyn,' x tdyn')
-
-
 
 ##### generate a mock data
 ##### mock data parameters
@@ -135,38 +138,40 @@ vz_start= vzt[:, -1]
 # print('Final omega and omega_dm =', omega_ii, omegadm_true)
 
 # Perturb a the disk by adding a perturber passing through the disk
-print(' Running Wendy with a perturber to perturbe the disk')
-nt = 2000  # number of timestep
-vz0sat = 20 # The speed of the satellite unit is km/s
-pmdisk=0.15  # The mass of the satellite as a percentage of disc mass
-msat = totmass_true*pmdisk
-z0sat = -3.0 # The initial location of the satellite from the disk plane (kpc)
-print(' Perturber initial parameters, vz, m and zini=', vz0sat, msat, z0sat)
-dt = dttdyn*tdyn
-i_remove = int(round((max(z_start)*1.1-z0sat)/vz0sat/dt))
+if Add_perturbation==True:
+  print(' Running Wendy with a perturber to perturbe the disk')
+  nt = 2000  # number of timestep
+  vz0sat = 20 # The speed of the satellite unit is km/s
+  pmdisk=0.15  # The mass of the satellite as a percentage of disc mass
+  msat = totmass_true*pmdisk
+  z0sat = -3.0 # The initial location of the satellite from the disk plane (kpc)
+  print(' Perturber initial parameters, vz, m and zini=', vz0sat, msat, z0sat)
+  dt = dttdyn*tdyn
+  i_remove = int(round((max(z_start)*1.1-z0sat)/vz0sat/dt))
 
-z = copy.deepcopy(z_start)
-vz = copy.deepcopy(vz_start)
+  z = copy.deepcopy(z_start)
+  vz = copy.deepcopy(vz_start)
 
-# adding the satellite
-n_init = n_init0+1
-ntot_sat = n_init
-z = numpy.append(z, z0sat)
-vz = numpy.append(vz, vz0sat)
-m = numpy.append(m_init, msat)
+  # adding the satellite
+  n_init = n_init0+1
+  ntot_sat = n_init
+  z = numpy.append(z, z0sat)
+  vz = numpy.append(vz, vz0sat)
+  m = numpy.append(m_init, msat)
 
-print('number of times step and step of removal of the perturber =', nt, i_remove)
+  print('number of times step and step of removal of the perturber =', \
+        nt, i_remove)
 
-zt = numpy.empty((n_init, nt+1))
-vzt = numpy.empty((n_init, nt+1))
-# Et = numpy.empty((n_init))
-zt[:,0] = z
-vzt[:,0] = vz
-# Et[0] = wendy.energy(z, vz, m, omega=omegadm_true)
+  zt = numpy.empty((n_init, nt+1))
+  vzt = numpy.empty((n_init, nt+1))
+  # Et = numpy.empty((n_init))
+  zt[:,0] = z
+  vzt[:,0] = vz
+  # Et[0] = wendy.energy(z, vz, m, omega=omegadm_true)
 
-g= wendypy.nbody(z, vz, m, dt, omega=omegadm_true, approx=True, nleap=1)
+  g= wendypy.nbody(z, vz, m, dt, omega=omegadm_true, approx=True, nleap=1)
 
-for ii in range(i_remove):
+  for ii in range(i_remove):
     tz, tvz = next(g)
     tz[-1] = z0sat+ii*dt*vz0sat
     tvz[-1] = vz0sat
@@ -175,36 +180,45 @@ for ii in range(i_remove):
     # Et[ii+1] = wendy.energy(tz, tvz, m)
     g = wendypy.nbody(tz, tvz, m, dt, omega=omegadm_true, approx=True, nleap=1)
     
-g = wendypy.nbody(tz[:-1], tvz[:-1], m[:-1], dt, omega=omegadm_true, approx=True, nleap=5)
-for ii in range(nt-i_remove):
+  g = wendypy.nbody(tz[:-1], tvz[:-1], m[:-1], dt, omega=omegadm_true, approx=True, nleap=5)
+  for ii in range(nt-i_remove):
     tz, tvz = next(g)
     zt[:-1, ii+i_remove+1] = tz
     vzt[:-1, ii+i_remove+1] = tvz
     # Et[ii+i_remove+1] = wendy.energy(tz, tvz, m[:-1], omega=omegadm_true, twopiG=2.*pi)
 
-# adjust the position
-zt_iso1 = numpy.array([zt[:, i]-numpy.median(zt[:, i]) for i in range(i_remove)])
-zt_iso2 = numpy.array([zt[:-1, i+i_remove]-numpy.median(zt[:-1, i+i_remove]) 
+  # adjust the position
+  zt_iso1 = numpy.array([zt[:, i]-numpy.median(zt[:, i]) for i in range(i_remove)])
+  zt_iso2 = numpy.array([zt[:-1, i+i_remove]-numpy.median(zt[:-1, i+i_remove]) 
                  for i in range(nt-i_remove+1)])
 
-zt_iso = numpy.zeros((ntot_sat, nt+1))
-zt_iso[:, :i_remove] = zt_iso1.T
-zt_iso[:-1, i_remove:] = zt_iso2.T
-zt_iso[-1, i_remove:] = numpy.nan
-n_init = n_init0
+  zt_iso = numpy.zeros((ntot_sat, nt+1))
+  zt_iso[:, :i_remove] = zt_iso1.T
+  zt_iso[:-1, i_remove:] = zt_iso2.T
+  zt_iso[-1, i_remove:] = numpy.nan
+  n_init = n_init0
 
 ### Choose the target data snapshot ###
-istep = 1800
-print(' target snapshot is chosen at step=', istep)
 n_mock = n_init
-z_mock = zt_iso[:-1, istep]
-vz_mock = vzt[:-1, istep]-numpy.mean(vzt[:-1, istep])
+if Add_perturbation==True:
+  istep = 1800
+  print('target snapshot is chosen at step=', istep)
+  z_mock = zt_iso[:-1, istep]
+  vz_mock = vzt[:-1, istep]-numpy.mean(vzt[:-1, istep])
+else:
+  print('targe mock data from a stablized disk after adding a DM background.')
+  z_mock = z_start
+  vz_mock = vz_start
+
 m_mock = m_init
 totmass_true = numpy.sum(m_mock)
 omegadm = copy.deepcopy(omegadm_true)
 
 # save the mock snapshot data
-savefilename='xnmomega_perturbed_target_mzvz.sav'
+if Add_perturbation==True:
+  savefilename='xnmomega_perturbed_target_mzvz.sav'
+else:
+  savefilename='xnmomega_stable_target_mzvz.sav'  
 save_pickles(savefilename, m_mock, z_mock, vz_mock, omegadm_true)
 
 # The z positions of observation
@@ -242,6 +256,7 @@ print('zobs=',data_dicts['type'=='dens']['zobs'])
 
 ### set the initial model
 n_m2m= 4000
+print(' Number of M2M model particles =', n_m2m)
 sigma_init= sigma_true*1.2
 h_m2m= h_def
 # set a guess
@@ -254,7 +269,7 @@ zh_init = sigma_init**2./totmass_init
 tdyn = zh_init/sigma_init
 print(' initial zh, tdyn =', zh_init, tdyn)
 # DM density
-omega_m2m = omegadm_true*1.2
+omega_m2m = omegadm_true*1.5
 print('Initial omega, Xnm and sigma =', omega_m2m, xnm_m2m, sigma_init)
 
 z_m2m, vz_m2m, w_init= wendym2m.sample_sech2(sigma_init,totmass_init,n=n_m2m)
@@ -296,7 +311,7 @@ print('Final omega and omega_dm =', omega_ii, omegadm_true)
 step= dttdyn*tdyn
 nstep= 10000
 # eps weight, omega, xnm
-eps = [10.0**1.0, 10.0**2.0, 10.0**-9.0]
+eps = [10.0**1.0, 10.0**2.5, 10.0**-9.0]
 print('M2M parameters: nstep, eps =', nstep, eps)
 smooth= None #1./step/100.
 st96smooth= False
@@ -413,10 +428,16 @@ bovy_plot.bovy_plot(numpy.linspace(0.,1.,nstep)*nstep*step,numpy.sum(Q,axis=1),l
 #gca().xaxis.set_major_formatter(FuncFormatter(
 #                lambda y,pos: (r'${{:.{:1d}f}}$'.format(int(numpy.maximum(-numpy.log10(y),0)))).format(y)))
 plt.tight_layout()
-bovy_plot.bovy_end_print('m2m_results_perturbed_mock.jpg')
+if Add_perturbation==True:
+  bovy_plot.bovy_end_print('m2m_results_perturbed_mock.jpg')
+else:
+  bovy_plot.bovy_end_print('m2m_results_stable_mock.jpg')  
 
 ### Save the results in a file
-savefilename='m2m_results_perturbed_mock.sav'
+if Add_perturbation==True:
+  savefilename='m2m_results_perturbed_mock.sav'
+else:
+  savefilename='m2m_results_stable_mock.sav'  
 save_pickles(savefilename,w_out,omega_out,xnm_out,z_m2m,vz_m2m,zsun_true,
              vzsun_true,data_dicts,z_mock,vz_mock,v_obs,v_obs_noise, \
              w_init,h_m2m,omega_m2m,xnm_m2m,zsun_m2m,\
