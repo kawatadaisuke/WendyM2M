@@ -204,6 +204,8 @@ skipxnm = 100
 
 print('skipomega,skipxnm =', skipomega, skipxnm)
 print(' ft omega, xnm =', fit_omega, fit_xnm)
+print(' sig_omega, nmh_omega =', sig_omega, nmh_omega)
+print(' sig_xnm, nmh_omega =', sig_xnm, nmh_xnm)
 print(' smooth, st96smooth, prior, use_v2=',smooth, st96smooth, prior, use_v2)
 print(' mu, h_m2m=', mu, h_m2m)
 
@@ -233,7 +235,7 @@ else:
                          nmh_omega=nmh_omega, skipomega=skipomega,
                          number_density=True, xnm_m2m=xnm_m2m,
                          fit_xnm=fit_xnm, skipxnm=skipxnm,
-                         sig_xnm=sig_xnm, nmh_xnm=nmh_xnm)
+                         sig_xnm=sig_xnm, nmh_xnm=nmh_xnm, fix_weights=False)
     save_pickles(savefilename,*out)
 w_sam,xnm_sam, omega_sam, Q_sam,z_sam,vz_sam= out
 

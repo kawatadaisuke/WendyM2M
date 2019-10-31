@@ -627,7 +627,14 @@ def sample_m2m(nsamples,
                 raise ValueError( \
                   "'type' of measurement in data_dict in sample_m2m not understood")
         else:
-            tout= [w_init]
+            # tout= [w_init]
+            kwargs['nstep']= 1
+            kwargs['eps']= 0. # Don't change weights
+            tout= fit_m2m(w_init,z_init,vz_init,omega_m2m,zsun_m2m, \
+                          data_dicts, **kwargs)
+            kwargs['nstep']= nstep
+            kwargs['eps']= eps
+            
         # Compute average chi^2 for initial zsun
         if fit_zsun:
             tnstep= nstep_zsun
@@ -653,9 +660,12 @@ def sample_m2m(nsamples,
             # Rewind orbit, so we use same part for all zsun/omega
             # phi_now-= omega_m2m*nstep_zsun*kwargs.get('step',0.001)
             # Rewind by -nstep_zsun
-            mass = numpy.sum(tout[0], axis=1)
-            z_m2m, vz_m2m = rewind_nstep_zvz(z0_m2m, vz0_m2m, mass,
-                                               omega_m2m, step, nstep)
+            # mass = numpy.sum(tout[0], axis=1)
+            # z_m2m, vz_m2m = rewind_nstep_zvz(z0_m2m, vz0_m2m, mass,
+            #                                   omega_m2m, step, nstep)
+            # no rewind but reset z and vz to the initial value
+            z_m2m = z0_m2m
+            vz_m2m = vz0_m2m            
             kwargs['nstep']= nstep_zsun
             kwargs['eps']= 0. # Don't change weights
             for jj in range(nmh_zsun):
@@ -689,9 +699,12 @@ def sample_m2m(nsamples,
             vz_m2m = dum_vz
         if fit_xnm:
             # Rewind by -nstep_zsun
-            mass = numpy.sum(tout[0], axis=1)
-            z_m2m, vz_m2m = rewind_nstep_zvz(z0_m2m, vz0_m2m, mass,
-                                               omega_m2m, step, nstep_xnm)
+            # mass = numpy.sum(tout[0], axis=1)
+            # z_m2m, vz_m2m = rewind_nstep_zvz(z0_m2m, vz0_m2m, mass,
+            #                                   omega_m2m, step, nstep_xnm)
+            # no rewind, but reset z and vz
+            z_m2m = z0_m2m
+            vz_m2m = vz0_m2m
             kwargs['nstep']= nstep_xnm
             kwargs['eps']= 0. # Don't change weights
             for jj in range(nmh_xnm):
@@ -718,6 +731,9 @@ def sample_m2m(nsamples,
             vz_m2m = dum_vz
         if (fit_zsun and nstepzsun != nstep_omega) or \
            (fit_xnm and nstep_xnm !=nstep_omega):
+            # reset z and vz
+            z_m2m = z0_m2m
+            vz_m2m = vz0_m2m
             # Need to compute average obj. function for nstep_omega
             kwargs['nstep']= nstep_omega
             kwargs['eps']= 0. # Don't change weights
