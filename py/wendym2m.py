@@ -724,7 +724,7 @@ def sample_m2m(nsamples,
                     nacc_xnm+= 1
             kwargs['nstep']= nstep
             kwargs['eps']= eps
-            kwargs['xnm_m2m']= xnm_new            
+            kwargs['xnm_m2m']= xnm_m2m            
             xnm_out[ii]= xnm_m2m
             # update orbit
             z_m2m = dum_z

@@ -47,7 +47,7 @@ matplotlib.use('Agg')
 numpy.random.seed(2)
 
 ### Options
-Add_perturbation = True
+Add_perturbation = False
 
 print(' Add Perturbation = ', Add_perturbation)
 
@@ -227,7 +227,8 @@ z_obs= numpy.array([0.15, 0.25, 0.35, 0.45, 0.55, 0.65,
 h_obs= h_def
 # density
 dens_obs= xnm_true*hom2m.compute_dens(z_mock,zsun_true,z_obs,h_obs,w=m_mock)
-dens_obs_noise= 0.2*dens_obs/numpy.sqrt(dens_obs)
+# dens_obs_noise= 0.01*dens_obs/numpy.sqrt(dens_obs)
+dens_obs_noise= 0.05*dens_obs
 numpy.random.seed(203)
 dens_obs+= numpy.random.normal(size=dens_obs.shape)*dens_obs_noise
 # v^2
@@ -311,7 +312,9 @@ print('Final omega and omega_dm =', omega_ii, omegadm_true)
 step= dttdyn*tdyn
 nstep= 10000
 # eps weight, omega, xnm
-eps = [10.0**1.0, 10.0**2.5, 10.0**-9.0]
+# best with 0.2*rho/sqrt(N) uncertainty for density
+# eps = [10.0**1.0, 10.0**2.5, 10.0**-9.5]
+eps = [10.0**0.0, 10.0**2.5, 10.0**-10.0]
 print('M2M parameters: nstep, eps =', nstep, eps)
 smooth= None #1./step/100.
 st96smooth= False
