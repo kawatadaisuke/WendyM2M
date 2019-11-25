@@ -783,7 +783,6 @@ def sample_m2m(nsamples,
                     vz_m2m= vz_cur
             kwargs['nstep']= nstep
             kwargs['eps']= eps
-            kwargs['omega_m2m']= omega_m2m  
             omega_out[ii]= omega_m2m
         w_out[ii]= tout[0]
         Q_out[ii]= tQ
