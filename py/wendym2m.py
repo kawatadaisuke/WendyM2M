@@ -609,6 +609,8 @@ def sample_m2m(nsamples,
             tout= fit_m2m(w_init,z_init,vz_init,omega_m2m,zsun_m2m, \
                           data_dicts, **kwargs)
             # Keep track of orbits
+            z_m2m = tout[1]
+            vz_m2m = tout[2]
             # phi_now+= omega_m2m*kwargs.get('nstep',1000) \
             #    *kwargs.get('step',0.001)
             # z_m2m, vz_m2m= Aphi_to_zvz(A_now,phi_now,omega_m2m)
@@ -726,9 +728,6 @@ def sample_m2m(nsamples,
             kwargs['eps']= eps
             kwargs['xnm_m2m']= xnm_m2m            
             xnm_out[ii]= xnm_m2m
-            # update orbit
-            z_m2m = dum_z
-            vz_m2m = dum_vz
         if (fit_zsun and nstepzsun != nstep_omega) or \
            (fit_xnm and nstep_xnm !=nstep_omega):
             # reset z and vz
@@ -748,6 +747,8 @@ def sample_m2m(nsamples,
         if fit_omega:
             kwargs['nstep']= nstep_omega
             kwargs['eps']= 0. # Don't change weights
+            z_m2m = z0_m2m
+            vz_m2m = vz0_m2m
             for jj in range(nmh_omega):
                 # get mass
                 mass = numpy.sum(tout[0], axis=1)
@@ -777,11 +778,12 @@ def sample_m2m(nsamples,
                     omega_m2m= omega_new
                     tQ= numpy.mean(dum_Q, axis=0)                    
                     nacc_omega+= 1
-            # Update phase-space positions
-            z_m2m = dum_z
-            vz_m2m= dum_vz
+                    # Update phase-space positions
+                    z_m2m = z_cur
+                    vz_m2m= vz_cur
             kwargs['nstep']= nstep
             kwargs['eps']= eps
+            kwargs['omega_m2m']= omega_m2m  
             omega_out[ii]= omega_m2m
         w_out[ii]= tout[0]
         Q_out[ii]= tQ
