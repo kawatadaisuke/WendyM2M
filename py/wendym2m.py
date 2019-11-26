@@ -587,8 +587,9 @@ def sample_m2m(nsamples,
     
     # Setup orbits
     # A_now, phi_now= zvz_to_Aphi(z_init,vz_init,omega_m2m)
-    z_m2m= z_init
-    vz_m2m= vz_init
+    z_m2m= copy.deepcopy(z_init)
+    vz_m2m= copy.deepcopy(vz_init)
+    w_m2m= copy.deepcopy(w_init)
     for ii in tqdm.tqdm(range(nsamples)):
         if not fix_weights:
             # Draw new observations
@@ -606,7 +607,7 @@ def sample_m2m(nsamples,
               else:
                 raise ValueError( \
                   "'type' of measurement in data_dict in sample_m2m not understood")
-            tout= fit_m2m(w_init,z_init,vz_init,omega_m2m,zsun_m2m, \
+            tout= fit_m2m(w_m2m,z_m2m,vz_m2m,omega_m2m,zsun_m2m, \
                           data_dicts, **kwargs)
             # Keep track of orbits
             z_m2m = tout[1]
@@ -632,7 +633,7 @@ def sample_m2m(nsamples,
             # tout= [w_init]
             kwargs['nstep']= 1
             kwargs['eps']= 0. # Don't change weights
-            tout= fit_m2m(w_init,z_init,vz_init,omega_m2m,zsun_m2m, \
+            tout= fit_m2m(w_m2m,z_m2m,vz_m2m,omega_m2m,zsun_m2m, \
                           data_dicts, **kwargs)
             kwargs['nstep']= nstep
             kwargs['eps']= eps
@@ -788,6 +789,8 @@ def sample_m2m(nsamples,
         Q_out[ii]= tQ
         z_out[ii]= z_m2m
         vz_out[ii]= vz_m2m
+        # update w_m2m
+        w_m2m = tout[0]
     out= (w_out,)
     if fit_zsun: out= out+(zsun_out,)
     if fit_xnm: out= out+(xnm_out,)    
