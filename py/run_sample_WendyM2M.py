@@ -51,8 +51,8 @@ matplotlib.use('Agg')
 numpy.random.seed(2)
 
 ### set the model results
-obs_data = 'mock_stable'
-# obs_data = 'mock_perturbed'
+# obs_data = 'mock_stable'
+obs_data = 'mock_perturbed'
 # obs_data = 'BB19_GDR2'
 
 print(' target observational data =', obs_data)
@@ -170,12 +170,12 @@ v_final= hom2m.compute_v(z_m2m,vz_m2m,zsun_true,z_out,h_m2m,w=w_out)
 ### Sample w, omega and Xnm
 # default sample step
 step_sam= dttdyn*tdyn
-nstep_sam = 100
-eps = [10.0**1.0, 10.0**2.5, 10.0**-9.0]
+nstep_sam = 500
+eps = [10.0**-1.0, 10.0**2.5, 10.0**-10.5]
 print('M2M sample parameters: nstep_sam, eps =', nstep_sam, eps)
 # used for weight sampling only
 eps_sam = eps[0]
-nsamples= 50 
+nsamples= 100 
 s_low, s_high= 16, -16
 print(' Nsample =', nsamples)
 smooth= None #1./step/100.
@@ -190,12 +190,12 @@ fit_omega = True
 # not fraction, but 1 sigma size for step of MCMC
 # note omega's scale is 40 or so
 sig_omega = 30.4*1.0e-3
-nmh_omega = 5
+nmh_omega = 25
 fit_xnm = True
 # not fraction, but 1 sigma size for step of MCMC
 # note Xnm scale is aroud 0.002
 sig_xnm = 0.002*1.0e-3
-nmh_xnm = 5
+nmh_xnm = 25
 prior= 'entropy'
 use_v2=True
 # these will not be used
@@ -258,7 +258,7 @@ totmass_sam = numpy.sum(w_sam[:,:], axis=1)
 # surface mass density of stars
 sfmden_star_sam = totmass_sam*munit_msun/(lunit_pc**2)
 
-if obs_data=='mock_stable' or mock_data=='mock_perturbed':
+if obs_data=='mock_stable' or obs_data=='mock_perturbed':
   print('xnm: true, initial, best-fit, mean of samples, unc.=',xnm_true, \
         xnm_out[-1],numpy.mean(xnm_sam),numpy.std(xnm_sam))
   print('omega: true, best-fit, initial, mean of samples, unc.=',omegadm_true, \
