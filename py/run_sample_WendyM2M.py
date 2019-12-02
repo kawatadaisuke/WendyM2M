@@ -118,6 +118,8 @@ if h_m2m!=h_def:
   print('Error h_m used =', h_m2m,' but h_def =', h_def)
   sys.exit()
 
+print(' number of particles =', len(z_m2m))
+
 for jj,data_dict in enumerate(data_dicts):
     if data_dict['type'].lower() == 'dens':
         z_obs = data_dict['zobs']
@@ -189,7 +191,7 @@ fit_zsun = False
 fit_omega = True
 # not fraction, but 1 sigma size for step of MCMC
 # note omega's scale is 40 or so
-sig_omega = 30.4*1.0e-3
+sig_omega = 30.4*1.0e-1
 nmh_omega = 25
 fit_xnm = True
 # not fraction, but 1 sigma size for step of MCMC
@@ -317,11 +319,12 @@ if obs_data=='mock_stable' or obs_data=='mock_perturbed':
   m_mock = totmass_true/len(z_mock)
   print(' mock data weight =',m_mock)
   for jj,zlim in enumerate(zabs_out):
-    indx = numpy.where(z_mock<zlim)
-    sfmden_z_star_true[jj] = m_mock*len(z_mock[indx])*munit_msun/(lunit_pc**2)
+    indx = numpy.where(numpy.abs(z_mock)<zlim)
+    sfmden_z_star_true[jj] = 0.5*m_mock*len(z_mock[indx]) \
+      *munit_msun/(lunit_pc**2)
   sfmden_z_dm_true = zabs_out*(omegadm_true**2/2.0) \
     *densunit_msunpc3*lunit_pc
-  sfmden_z_tot_strue = sfmden_z_star_true+sfmden_z_dm_true
+  sfmden_z_tot_true = sfmden_z_star_true+sfmden_z_dm_true
 
 sfmden_z_tot_sam = numpy.zeros((nsamples,len(zabs_out)))
 sfmden_z_star_sam = numpy.zeros((nsamples,len(zabs_out)))
@@ -331,7 +334,7 @@ for ii in range(nsamples):
   for jj,zlim in enumerate(zabs_out):
     indx = numpy.where(zabs_sam[ii, :]<zlim)
     w_selp = w_sam[ii, indx]
-    sfmden_z_star_sam[ii, jj] = numpy.sum(w_selp)*munit_msun/(lunit_pc**2)
+    sfmden_z_star_sam[ii, jj] = 0.5*numpy.sum(w_selp)*munit_msun/(lunit_pc**2)
   sfmden_z_dm_sam[ii,:] = zabs_out*(omega_sam[ii]**2/2.0) \
     *densunit_msunpc3*lunit_pc
   sfmden_z_tot_sam[ii,:] = sfmden_z_star_sam[ii,:]+sfmden_z_dm_sam[ii,:]
@@ -414,7 +417,10 @@ plt.fill_between(zabs_out,sfmden_z_dm_sam_sorted[s_low], \
 plt.fill_between(zabs_out,sfmden_z_tot_sam_sorted[s_low], \
                  sfmden_z_tot_sam_sorted[s_high], \
                  color='0.65',alpha=0.5,zorder=0)
-plt.plot(zabs_out,sfmden_z_tot_true)
+plt.plot(zabs_out,sfmden_z_tot_true, c='gray' )
+plt.plot(zabs_out,sfmden_z_star_true, c='blue')
+plt.plot(zabs_out,sfmden_z_dm_true, c='red')
+
 plt.xlabel(r'$|z|$ (kpc)')
 plt.ylabel(r'$\rho$ (Msun pc$^{-3}$)')
 
