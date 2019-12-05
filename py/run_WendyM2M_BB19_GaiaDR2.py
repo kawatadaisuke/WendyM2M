@@ -105,6 +105,10 @@ munit_msun = munit_cgs/msun_cgs
 print(' mass unit (Msun) =', munit_msun)
 densunit_msunpc3 = munit_msun/(lunit_pc**3)
 
+### computation parameters
+dttdyn = 0.01    # time step is set with dt = dttdyn*tdyn
+print(' time step set ', dttdyn,' x tdyn')
+
 ### unit conversion
 z_pmock = z_pmock/lunit_kpc
 z_vmock = z_vmock/lunit_kpc
@@ -166,7 +170,7 @@ print('zobs=',data_dicts['type'=='dens']['zobs'])
 ##### M2M fitting both omega and Xnm
 
 ### set the initial model
-n_m2m= 4000
+n_m2m= 10000
 sigma_init= 20.0
 h_m2m= 0.1
 # set a guess
@@ -196,10 +200,11 @@ print(' initial DM density (Msun pc^-3) =', rhodm_msunpc3)
 print(' omega(initial)=', omega_m2m)
 
 ### Set M2M parameters
-step= 0.05*tdyn
-nstep= 4000
+step= dttdyn*tdyn
+nstep= 10000
 # eps weight, omega, xnm
-eps = [10.0**-1.0, 10.0**-0.0, 10.0**-8.0]
+eps = [10.0**0.0, 10.0**2.5, 10.0**-10.5]
+print('M2M parameters: nstep, eps =', nstep, eps)
 smooth= None #1./step/100.
 st96smooth= False
 mu= 0.
@@ -211,6 +216,10 @@ skipxnm = 100
 fit_xnm = True
 prior= 'entropy'
 use_v2=True
+print('skipomega,skipxnm =', skipomega, skipxnm)
+print(' ft omega, xnm =', fit_omega, fit_xnm)
+print(' smooth, st96smooth, prior, use_v2=',smooth, st96smooth, prior, use_v2)
+print(' mu, h_m2m=', mu, h_m2m)
 
 ### Run M2M
 w_out,omega_out,xnm_out,z_m2m,vz_m2m,Q,wevol,windx= \
@@ -329,7 +338,7 @@ bovy_plot.bovy_plot(numpy.linspace(0.,1.,nstep)*nstep*step,numpy.sum(Q,axis=1),l
 #gca().xaxis.set_major_formatter(FuncFormatter(
 #                lambda y,pos: (r'${{:.{:1d}f}}$'.format(int(numpy.maximum(-numpy.log10(y),0)))).format(y)))
 plt.tight_layout()
-bovy_plot.bovy_end_print('m2m_results.jpg')
+bovy_plot.bovy_end_print('m2m_results_BB19_GaiaDR2.jpg')
 
 
 

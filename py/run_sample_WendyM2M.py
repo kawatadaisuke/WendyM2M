@@ -51,8 +51,8 @@ matplotlib.use('Agg')
 numpy.random.seed(2)
 
 ### set the model results
-# obs_data = 'mock_stable'
-obs_data = 'mock_perturbed'
+obs_data = 'mock_stable'
+# obs_data = 'mock_perturbed'
 # obs_data = 'BB19_GDR2'
 
 print(' target observational data =', obs_data)
@@ -173,12 +173,14 @@ v_final= hom2m.compute_v(z_m2m,vz_m2m,zsun_true,z_out,h_m2m,w=w_out)
 # default sample step
 step_sam= dttdyn*tdyn
 nstep_sam = 500
+# nstep_sam = 100
 eps = [10.0**-1.0, 10.0**2.5, 10.0**-10.5]
 print('M2M sample parameters: nstep_sam, eps =', nstep_sam, eps)
 # used for weight sampling only
 eps_sam = eps[0]
-nsamples= 100 
-s_low, s_high= 16, -16
+# nsamples= 100
+nsamples= 25
+s_low, s_high= 4, -4
 print(' Nsample =', nsamples)
 smooth= None #1./step/100.
 st96smooth= False
@@ -191,13 +193,15 @@ fit_zsun = False
 fit_omega = True
 # not fraction, but 1 sigma size for step of MCMC
 # note omega's scale is 40 or so
-sig_omega = 30.4*1.0e-1
+sig_omega = 30.4*0.01
 nmh_omega = 25
+nstep_omega = 500
 fit_xnm = True
 # not fraction, but 1 sigma size for step of MCMC
 # note Xnm scale is aroud 0.002
-sig_xnm = 0.002*1.0e-3
+sig_xnm = 0.002*0.01
 nmh_xnm = 25
+nstep_xnm = 500
 prior= 'entropy'
 use_v2=True
 # these will not be used
@@ -237,7 +241,9 @@ else:
                          nmh_omega=nmh_omega, skipomega=skipomega,
                          number_density=True, xnm_m2m=xnm_m2m,
                          fit_xnm=fit_xnm, skipxnm=skipxnm,
-                         sig_xnm=sig_xnm, nmh_xnm=nmh_xnm, fix_weights=False)
+                         sig_xnm=sig_xnm, nmh_xnm=nmh_xnm,
+                         nstep_omega=nstep_omega, nstep_xnm=nstep_xnm,
+                         fix_weights=False)
     save_pickles(savefilename,*out)
 w_sam,xnm_sam, omega_sam, Q_sam,z_sam,vz_sam= out
 

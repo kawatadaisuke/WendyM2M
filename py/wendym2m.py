@@ -5,6 +5,10 @@ import numpy
 import wendypy
 import hom2m
 from itertools import chain
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib import cm
+from galpy.util import bovy_plot, save_pickles
 
 ########################## SELF-GRAVITATING DISK TOOLS ########################
 def sample_sech2(sigma,totmass,n=1):
@@ -164,8 +168,14 @@ def force_of_change_xnm(w_m2m,zsun_m2m,z_m2m,vz_m2m,
                         kernel=hom2m.epanechnikov_kernel,
                         xnm_m2m=1.0):
     """Computes the force of change for Xnm"""
-    z_obs = data_dicts['type' == 'dens']['zobs']
-    dens_obs_noise = data_dicts['type' == 'dens']['unc']
+    # Note that ['type' == 'dens'] does not work, but point the first one.
+    # z_obs = data_dicts['type' == 'dens']['zobs']
+    # dens_obs_noise = data_dicts['type' == 'dens']['unc']
+    for jj,data_dict in enumerate(data_dicts):
+        if data_dict['type'].lower() == 'dens':
+            z_obs = data_dict['zobs']
+            dens_obs_noise = data_dict['unc']
+            break
     Wij = numpy.zeros((len(z_obs), len(z_m2m)))
     mdens_m2m = numpy.zeros(len(z_obs))
     for jj,zo in enumerate(z_obs):
@@ -607,6 +617,7 @@ def sample_m2m(nsamples,
               else:
                 raise ValueError( \
                   "'type' of measurement in data_dict in sample_m2m not understood")
+            
             tout= fit_m2m(w_m2m,z_m2m,vz_m2m,omega_m2m,zsun_m2m, \
                           data_dicts, **kwargs)
             # Keep track of orbits
@@ -621,11 +632,11 @@ def sample_m2m(nsamples,
             # Need to switch back to original data
             for jj,data_dict in enumerate(data_dicts):
               if data_dict['type'].lower() == 'dens':
-                data_dicts['type' == 'dens']['obs'] = dens_obs
+                data_dicts[jj]['obs'] = dens_obs
               elif data_dict['type'].lower() == 'v2':
-                data_dicts['type' == 'v2']['obs'] = v2_obs
+                data_dicts[jj]['obs'] = v2_obs
               elif data_dict['type'].lower() == 'v':
-                data_dicts['type' == 'v']['obs'] = v_obs
+                data_dicts[jj]['obs'] = v_obs
               else:
                 raise ValueError( \
                   "'type' of measurement in data_dict in sample_m2m not understood")
@@ -719,7 +730,7 @@ def sample_m2m(nsamples,
                 acc= (numpy.nansum(tQ)
                       -numpy.mean(numpy.nansum(dum_Q, axis=1)))/2.
                 
-#                print('Xnm old, new, acc=',xnm_m2m,xnm_new,acc)
+                # print(ii,jj,'Xnm old, new, acc=',xnm_m2m,xnm_new,acc)
                 
                 if acc > numpy.log(numpy.random.uniform()):
                     xnm_m2m= xnm_new
@@ -738,7 +749,7 @@ def sample_m2m(nsamples,
             kwargs['nstep']= nstep_omega
             kwargs['eps']= 0. # Don't change weights
             dum_wout, dum_z, dum_vz, dum_Q = fit_m2m(tout[0], \
-              z_m2m,vz_m2m,omega_m2m,zsun_m2m,data_discts, **kwargs)
+              z_m2m,vz_m2m,omega_m2m,zsun_m2m,data_dicts, **kwargs)
             kwargs['nstep']= nstep
             kwargs['eps']= eps
             tQ= numpy.mean(dum_Q, axis=0)
@@ -757,8 +768,8 @@ def sample_m2m(nsamples,
                 omega_new= omega_m2m+numpy.random.normal()*sig_omega
                 # Slowly change the orbits from omega to omega_new, by 
                 # integrating backward
-                z_cur= copy.copy(z_m2m)
-                vz_cur= copy.copy(vz_m2m)
+                z_cur= copy.deepcopy(z_m2m)
+                vz_cur= copy.deepcopy(vz_m2m)
                 for kk in range(nstep_omega*nstepadfac_omega):
                     omega_cur= omega_m2m+(omega_new-omega_m2m)\
                         *kk/float(nstep_omega*nstepadfac_omega-1)
@@ -775,6 +786,59 @@ def sample_m2m(nsamples,
                 
                 acc= (numpy.nansum(tQ)
                       -numpy.mean(numpy.nansum(dum_Q, axis=1)))/2.
+
+                # print(ii,jj,' omega new, old acc=',omega_new,omega_m2m,acc)
+
+                # test output
+                # bovy_plot.bovy_print(axes_labelsize=19.,
+                #                     text_fontsize=14.,xtick_labelsize=15.,
+                #                     ytick_labelsize=15., fig_height=6.,
+                #                     fig_width=7.)
+                # density
+                # plt.subplot(2,1,1)
+                # xnm_true = 0.002
+                # zmin = -1.1
+                # zmax = 1.1
+                # densmin = 0.1
+                # densmax = 10.0
+                # v2min = 0.0
+                # v2max = 800.0
+                # z_bin= numpy.linspace(zmin, zmax, 101)
+                # kk = 0                
+                # bovy_plot.bovy_plot(data_dicts['type' == 'dens']['zobs'],
+                #     data_dicts['type' == 'dens']['obs'],
+                #     scatter=True,marker='o',s=5,semilogy=True,color='r',
+                #     xlabel=r'$\tilde{z}$',ylabel=r'$\nu_{\mathrm{obs}}(\tilde{z})$',
+                #    xrange=[zmin, zmax],yrange=[densmin,densmax],gcf=True)
+                # dens_cur = xnm_m2m*hom2m.compute_dens(
+                #     dum_z,zsun_m2m,z_bin,
+                #     kwargs['h_m2m'], w=tout[0][:,0])
+                # bovy_plot.bovy_plot(z_bin,dens_cur,'-',
+                #     semilogy=True,overplot=True,color='b')
+                # plt.errorbar(data_dicts[kk]['zobs'],
+                #     data_dicts[kk]['obs'],
+                #     yerr=data_dicts[kk]['unc'],
+                #     marker='None',ls='none',color='r')
+                # plt.yscale('log',nonposy='clip')
+                # # v2
+                # plt.subplot(2,1,2)
+                # kk=1
+                # bovy_plot.bovy_plot(data_dicts[kk]['zobs'],
+                #     data_dicts[kk]['obs'],
+                #     marker='o',color='r',scatter=True,s=5,
+                #     xlabel=r'$\tilde{z}$',ylabel=r'$\langle v_z^2\rangle(\tilde{z})$',
+                #     xrange=[zmin, zmax],yrange=[v2min,v2max],gcf=True)
+                # plt.errorbar(data_dicts[kk]['zobs'],
+                #     data_dicts[kk]['obs'],
+                #     yerr=data_dicts[kk]['unc'],
+                #     marker='None',ls='none',color='r')
+                # v2_cur= hom2m.compute_v2(dum_z,dum_vz,zsun_m2m,z_bin,
+                #     kwargs['h_m2m'], w=tout[0][:,0])
+                # bovy_plot.bovy_plot(z_bin,v2_cur,'-',
+                #     overplot=True,color='b')
+                # plt.tight_layout()
+                # bovy_plot.bovy_end_print('sam'+str(ii)+'-'+str(jj)+'.jpg')
+                        
                 if acc > numpy.log(numpy.random.uniform()):
                     omega_m2m= omega_new
                     tQ= numpy.mean(dum_Q, axis=0)                    

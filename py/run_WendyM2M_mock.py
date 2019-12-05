@@ -314,7 +314,7 @@ nstep= 10000
 # eps weight, omega, xnm
 # best with 0.2*rho/sqrt(N) uncertainty for density
 # eps = [10.0**1.0, 10.0**2.5, 10.0**-9.5]
-eps = [10.0**0.0, 10.0**2.5, 10.0**-10.0]
+eps = [10.0**0.0, 10.0**2.5, 10.0**-10.5]
 print('M2M parameters: nstep, eps =', nstep, eps)
 smooth= None #1./step/100.
 st96smooth= False
