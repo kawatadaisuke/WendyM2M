@@ -178,9 +178,9 @@ eps = [10.0**-1.0, 10.0**2.5, 10.0**-10.5]
 print('M2M sample parameters: nstep_sam, eps =', nstep_sam, eps)
 # used for weight sampling only
 eps_sam = eps[0]
-# nsamples= 100
-nsamples= 25
-s_low, s_high= 4, -4
+nsamples= 100
+# nsamples= 25
+s_low, s_high= 16*int(nsamples/100), -16*int(nsamples/100)
 print(' Nsample =', nsamples)
 smooth= None #1./step/100.
 st96smooth= False
@@ -193,7 +193,7 @@ fit_zsun = False
 fit_omega = True
 # not fraction, but 1 sigma size for step of MCMC
 # note omega's scale is 40 or so
-sig_omega = 30.4*0.01
+sig_omega = 30.4*0.001
 nmh_omega = 25
 nstep_omega = 500
 fit_xnm = True
@@ -249,10 +249,6 @@ w_sam,xnm_sam, omega_sam, Q_sam,z_sam,vz_sam= out
 
 ### Output the results
 print("#####   Results after sampling   #####")
-# for test
-s_low=-8
-s_high=8
-#
 xnm_m2m = xnm_out[-1]
 omega_mean = numpy.mean(omega_sam)
 omega_std = numpy.std(omega_sam)
@@ -423,9 +419,10 @@ plt.fill_between(zabs_out,sfmden_z_dm_sam_sorted[s_low], \
 plt.fill_between(zabs_out,sfmden_z_tot_sam_sorted[s_low], \
                  sfmden_z_tot_sam_sorted[s_high], \
                  color='0.65',alpha=0.5,zorder=0)
-plt.plot(zabs_out,sfmden_z_tot_true, c='gray' )
-plt.plot(zabs_out,sfmden_z_star_true, c='blue')
-plt.plot(zabs_out,sfmden_z_dm_true, c='red')
+if obs_data=='mock_stable' or obs_data=='mock_perturbed':
+  plt.plot(zabs_out,sfmden_z_tot_true, c='gray' )
+  plt.plot(zabs_out,sfmden_z_star_true, c='blue')
+  plt.plot(zabs_out,sfmden_z_dm_true, c='red')
 
 plt.xlabel(r'$|z|$ (kpc)')
 plt.ylabel(r'$\rho$ (Msun pc$^{-3}$)')
