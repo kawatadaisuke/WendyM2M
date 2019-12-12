@@ -22,10 +22,10 @@ Morgan Bennett - bennett at astro dot utoronto dot ca
 ## wendypy.py
 
 Please use either wendycpupy.py (CPU version)
-'''
+```
 ln -s wendycpupy.py wendypy.py
-'''
+```
  or wendycupy.py (GPU version using cupy).
-'''
+```
 ln -s wendycupy.py wendypy.py
-'''
+```
