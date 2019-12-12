@@ -19,3 +19,13 @@ Morgan Bennett - bennett at astro dot utoronto dot ca
 
  Modified version from Morgan Bennet's VWAVES-GaiaDR2, https://github.com/morganb-phys/VWaves-GaiaDR2, to generate the Gaia DR2 data for WendyM2M. 
 
+## wendypy.py
+
+Please use either wendycpupy.py (CPU version)
+'''
+ln -s wendycpupy.py wendypy.py
+'''
+ or wendycupy.py (GPU version using cupy).
+'''
+ln -s wendycupy.py wendypy.py
+'''
