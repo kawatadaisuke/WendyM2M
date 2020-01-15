@@ -110,7 +110,7 @@ print('zh, tdyn, omega_dm =', zh_true, tdyn, omegadm_true)
 # run Wendy to introduce the background potential adiabatically
 print(' running Wendy to add the background potential adiabatically')
 g = wendypy.nbody(z_init, vz_init, m_init, dttdyn*tdyn, approx=True, nleap=1)
-nt = 700
+nt = 4000
 zt = numpy.empty((n_init, nt+1))
 vzt = numpy.empty((n_init, nt+1))
 # Et = numpy.empty((nt+1))
@@ -118,7 +118,7 @@ zt[:, 0] = z_init
 vzt[:, 0] = vz_init
 # Et[0] = wendy.energy(z_init, vz_init, m_init)
 # increasing omega
-nstep_omega = 500
+nstep_omega = 1000
 domega = omegadm_true/nstep_omega
 omega_ii = 0.0
 tz = z_init
@@ -228,14 +228,40 @@ h_obs= h_def
 # density
 dens_obs= xnm_true*hom2m.compute_dens(z_mock,zsun_true,z_obs,h_obs,w=m_mock)
 # dens_obs_noise= 0.01*dens_obs/numpy.sqrt(dens_obs)
-dens_obs_noise= 0.05*dens_obs
+# dens_obs_noise= 0.05*dens_obs
 numpy.random.seed(203)
+# uncertainty from bootstrap
+nbs_sam = 100
+dens_obs_sam = numpy.zeros((nbs_sam,len(dens_obs)))
+for i in range(nbs_sam):
+    z_mock_i = numpy.random.choice(z_mock,len(z_mock))
+    # assuming m_mock are constant.
+    dens_obs_sam[i] = xnm_true*hom2m.compute_dens(z_mock_i,zsun_true,z_obs,h_obs,w=m_mock)
+dens_obs = numpy.mean(dens_obs_sam, axis=0)
+dens_obs_noise = numpy.std(dens_obs_sam, axis=0)
+print('dens=',dens_obs)
+print('dens=',dens_obs_noise)
 dens_obs+= numpy.random.normal(size=dens_obs.shape)*dens_obs_noise
+
 # v^2
 v2_obs= hom2m.compute_v2(z_mock,vz_mock,zsun_true,z_obs,h_obs)
 # use constant noise
-v2_obs_noise=numpy.zeros_like(v2_obs)+20.0
+# v2_obs_noise=numpy.zeros_like(v2_obs)+20.0
 numpy.random.seed(10) # probably best to set a seed somewhere so the data is always the same
+# Bootstrap error estimate
+nbs_sam = 100
+v2_obs_sam = numpy.zeros((nbs_sam,len(v2_obs)))
+for i in range(nbs_sam):
+    indx = numpy.random.randint(len(z_mock), size=len(z_mock))
+    z_mock_i = z_mock[indx]
+    vz_mock_i = vz_mock[indx]
+    # assuming m_mock are constant.
+    v2_obs_sam[i] = hom2m.compute_v2(z_mock_i,vz_mock_i,zsun_true,z_obs,h_obs)
+v2_obs = numpy.mean(v2_obs_sam, axis=0)
+v2_obs_noise = numpy.std(v2_obs_sam, axis=0)
+print('Bootstrap with a single output')
+print('v2_obs=', v2_obs)
+print('v2_obs_moise=',v2_obs_noise)
 v2_obs+= numpy.random.normal(size=v2_obs.shape)*v2_obs_noise
 
 # <v>, but not used for constraints.
@@ -244,6 +270,20 @@ v_obs= hom2m.compute_v(z_mock,vz_mock,zsun_true,z_obs,h_obs)
 # use constant noise
 v_obs_noise=numpy.zeros_like(v_obs)+0.5
 numpy.random.seed(42) # probably best to set a seed somewhere so the data is always the same
+# Bootstrap error estimate
+nbs_sam = 100
+v_obs_sam = numpy.zeros((nbs_sam,len(v_obs)))
+for i in range(nbs_sam):
+    indx = numpy.random.randint(len(z_mock), size=len(z_mock))
+    z_mock_i = z_mock[indx]
+    vz_mock_i = vz_mock[indx]
+    # assuming m_mock are constant.
+    v_obs_sam[i] = hom2m.compute_v(z_mock_i,vz_mock_i,zsun_true,z_obs,h_obs)
+v_obs = numpy.mean(v_obs_sam, axis=0)
+v_obs_noise = numpy.std(v_obs_sam, axis=0)
+print('Bootstrap with a single output')
+print('v_obs=', v_obs)
+print('v_obs_moise=',v_obs_noise)
 v_obs+= numpy.random.normal(size=v_obs.shape)*v_obs_noise
 
 ### setting data_dicts as the target data for M2M modelling
@@ -282,7 +322,7 @@ bovy_plot.bovy_print(axes_labelsize=17.,text_fontsize=12.,xtick_labelsize=15.,yt
 
 ### adiabatically add omega to the initial model
 g = wendypy.nbody(z_m2m, vz_m2m, w_init, dttdyn*tdyn, approx=True, nleap=1)
-nt = 600
+nt = 4000
 print('Addiabatically adding omega, nt=', nt)
 zt = numpy.empty((n_m2m, nt+1))
 vzt = numpy.empty((n_m2m, nt+1))
@@ -291,7 +331,7 @@ zt[:, 0] = z_m2m
 vzt[:, 0] = vz_m2m
 # Et[0] = wendy.energy(z_init, vz_init, m_init)
 # increasing omega
-nstep_omega = 500
+nstep_omega = 1000
 domega = omega_m2m/nstep_omega
 omega_ii = 0.0
 tz = z_m2m
