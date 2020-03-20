@@ -51,8 +51,8 @@ matplotlib.use('Agg')
 numpy.random.seed(2)
 
 ### set the model results
-obs_data = 'mock_stable'
-# obs_data = 'mock_perturbed'
+# obs_data = 'mock_stable'
+obs_data = 'mock_perturbed'
 # obs_data = 'BB19_GDR2'
 
 print(' target observational data =', obs_data)
@@ -178,7 +178,7 @@ eps = [10.0**-1.0, 10.0**2.5, 10.0**-10.5]
 print('M2M sample parameters: nstep_sam, eps =', nstep_sam, eps)
 # used for weight sampling only
 eps_sam = eps[0]
-nsamples= 100
+nsamples= 1000
 # nsamples= 25
 s_low, s_high= 16*int(nsamples/100), -16*int(nsamples/100)
 print(' Nsample =', nsamples)
@@ -193,7 +193,7 @@ fit_zsun = False
 fit_omega = True
 # not fraction, but 1 sigma size for step of MCMC
 # note omega's scale is 40 or so
-sig_omega = 30.4*0.001
+sig_omega = 30.4*0.01
 nmh_omega = 25
 nstep_omega = 500
 fit_xnm = True
@@ -375,37 +375,53 @@ plt.subplot(2,3,5)
 bovy_plot.bovy_plot(z_out,v_init,'-',gcf=True,
                    xlabel=r'$\tilde{z}$',ylabel=r'$\nu_{\mathrm{obs}}(\tilde{z})$',
                    xrange=[zmin, zmax],yrange=[vmin,vmax])
-bovy_plot.bovy_plot(z_obs,v_obs,'o',overplot=True)
+bovy_plot.bovy_plot(z_obs,v_obs,'o',overplot=True,color=constraint_color)
 plt.errorbar(z_obs,v_obs,yerr=v_obs_noise,marker='None',ls='none',color=sns.color_palette()[1])
 # plt.fill_between(z_out, v_final_sam_sorted[s_low], v_final_sam_sorted[s_high],color='0.65',zorder=0)
-bovy_plot.bovy_plot(z_out,v_final,'-',overplot=True,zorder=0,color=final_color)
+#bovy_plot.bovy_plot(z_out,v_final,'-',overplot=True,zorder=0,color=final_color)
+plt.fill_between(z_out, v_final_sam_sorted[s_low], v_final_sam_sorted[s_high],color='0.65',zorder=0)
 
-# v histogram
+
 plt.subplot(2,3,6)
-plt.hist(vz_vmock,bins=51,normed=True,range=(vzmin,vzmax), \
-         histtype='step',color=constraint_color)
-# xs= numpy.linspace(zmin, zmax, 201)
-h,e,p= plt.hist(vz_m2m,weights=w_out,histtype='step',lw=2.,normed=True, \
-                bins=31,range=(vzmin,vzmax),zorder=1,color=final_color)
-plt.fill_between(0.5*(e+numpy.roll(e,1))[1:],vz_hist_sorted[s_low],vz_hist_sorted[s_high],color='0.65',zorder=0,step='mid')
-plt.xlim(vzmin, vzmax)
-plt.ylim(0.,0.05)
-plt.xlabel(r'$v_z$')
-plt.ylabel(r'$p(v_z)$')
-print("Velocity dispersions: obs, fit",numpy.std(vz_vmock),\
-      numpy.sqrt(numpy.sum(w_out*(vz_m2m-numpy.sum(w_out*vz_m2m)/numpy.sum(w_out))**2.)/numpy.sum(w_out)))
+# v histogram
+# plt.hist(vz_vmock,bins=51,normed=True,range=(vzmin,vzmax), \
+#          histtype='step',color=constraint_color)
+# # xs= numpy.linspace(zmin, zmax, 201)
+# h,e,p= plt.hist(vz_m2m,weights=w_out,histtype='step',lw=2.,normed=True, \
+#                bins=31,range=(vzmin,vzmax),zorder=1,color=final_color)
+# plt.fill_between(0.5*(e+numpy.roll(e,1))[1:],vz_hist_sorted[s_low],vz_hist_sorted[s_high],color='0.65',zorder=0,step='mid')
+# plt.xlim(vzmin, vzmax)
+# plt.ylim(0.,0.05)
+# plt.xlabel(r'$v_z$')
+# plt.ylabel(r'$p(v_z)$')
+# print("Velocity dispersions: obs, fit",numpy.std(vz_vmock),\
+#      numpy.sqrt(numpy.sum(w_out*(vz_m2m-numpy.sum(w_out*vz_m2m)/numpy.sum(w_out))**2.)/numpy.sum(w_out)))
 
-# stellar mass distribution
-plt.subplot(2,3,2)
-# plt.scatter(sfmden_star_sam,dmden_sam,s='o')
-bovy_plot.bovy_plot(sfmden_star_sam,dmden_sam,'o', color=final_color, \
-                    xlabel=r'$\Sigma_{\rm star}$ (Msun pc$^{-2}$)', \
-                    ylabel=r'$\rho_{\rm DM}$ (Msun pc$^{-3}$)', \
-                    xrange=[43.0, 48.0], yrange=[0.0, 0.03], gcf=True)
+# omega and Xnm distributioin
+print(' xnm_sam and omega_sam size=',numpy.shape(xnm_sam), \
+      numpy.shape(omega_sam))
+bovy_plot.bovy_plot(xnm_sam, omega_sam,'.', color=final_color, \
+                    xlabel=r'$X_{\rm nm}$', \
+                    ylabel=r'$\omega$', \
+                    xrange=[0.001, 0.003], yrange=[20.0, 40.0], gcf=True)
 # bovy_plot.bovy_plot(sfmden_true,dmden_true,'o',overplot=True)
 # print(' True values star dm =', sfmden_true, dmden_true)
 if obs_data=='mock_stable' or obs_data=='mock_perturbed':
-  plt.scatter(sfmden_true, dmden_true,marker='*')
+  plt.scatter(xnm_true, omegadm_true,marker='x', s=200, c='b')
+
+
+
+# stellar mass and dark matter density distribution
+plt.subplot(2,3,2)
+# plt.scatter(sfmden_star_sam,dmden_sam,s='o')
+bovy_plot.bovy_plot(sfmden_star_sam,dmden_sam,'.', color=final_color, \
+                    xlabel=r'$\Sigma_{\rm star}$ (Msun pc$^{-2}$)', \
+                    ylabel=r'$\rho_{\rm DM}$ (Msun pc$^{-3}$)', \
+                    xrange=[35.0, 50.0], yrange=[0.0, 0.03], gcf=True)
+# bovy_plot.bovy_plot(sfmden_true,dmden_true,'o',overplot=True)
+# print(' True values star dm =', sfmden_true, dmden_true)
+if obs_data=='mock_stable' or obs_data=='mock_perturbed':
+  plt.scatter(sfmden_true, dmden_true,marker='x', s=200, c='b')
 
 
 # DM density distribution

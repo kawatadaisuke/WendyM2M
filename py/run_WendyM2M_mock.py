@@ -4,6 +4,7 @@
 #
 
 import os
+import sys
 import numpy
 import h5py
 from scipy.misc import logsumexp
@@ -119,6 +120,9 @@ vzt[:, 0] = vz_init
 # Et[0] = wendy.energy(z_init, vz_init, m_init)
 # increasing omega
 nstep_omega = 1000
+if nstep_omega > nt:
+  print(' Error nstep_omega=', nstep_omega, ' should be larger than nt=', nt)
+  sys.exit()
 domega = omegadm_true/nstep_omega
 omega_ii = 0.0
 tz = z_init
@@ -332,6 +336,9 @@ vzt[:, 0] = vz_m2m
 # Et[0] = wendy.energy(z_init, vz_init, m_init)
 # increasing omega
 nstep_omega = 1000
+if nstep_omega > nt:
+  print(' Error nstep_omega=', nstep_omega, ' should be larger than nt=', nt)
+  sys.exit()
 domega = omega_m2m/nstep_omega
 omega_ii = 0.0
 tz = z_m2m
