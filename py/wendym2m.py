@@ -174,19 +174,25 @@ def force_of_change_xnm(w_m2m,zsun_m2m,z_m2m,vz_m2m,
     # Note that ['type' == 'dens'] does not work, but point the first one.
     # z_obs = data_dicts['type' == 'dens']['zobs']
     # dens_obs_noise = data_dicts['type' == 'dens']['unc']
-    for jj,data_dict in enumerate(data_dicts):
+    fcx= numpy.zeros(len(w_m2m[0,:]))
+    for ii,data_dict in enumerate(data_dicts):
+        print(' ii data_dict',ii,data_dict)
         if data_dict['type'].lower() == 'dens':
             z_obs = data_dict['zobs']
             dens_obs_noise = data_dict['unc']
             break
+    # assuming the single population
     Wij = numpy.zeros((len(z_obs), len(z_m2m)))
     mdens_m2m = numpy.zeros(len(z_obs))
     for jj,zo in enumerate(z_obs):
         Wij[jj] = kernel(numpy.fabs(zo-z_m2m+zsun_m2m), h_m2m)
-        mdens_m2m[jj] = numpy.nansum(w_m2m*Wij[jj])
-    # print(' in xnm wij, w_m2m, mdens_m2m=',Wij,w_m2m,mdens_m2m)
-
-    return (-numpy.nansum(mdens_m2m*delta_m2m[0]/dens_obs_noise))
+        mdens_m2m[jj] = numpy.nansum(numpy.sum(w_m2m[:,data_dict['pops']],
+                                                   axis=1)*Wij[jj])
+    # print('mdens_m2m=',mdens_m2m)
+    # checked: This is consistent with what is computed in hom2m.force_of_change_weights
+    fcx[data_dict['pops']] = -numpy.nansum(mdens_m2m*delta_m2m[0]
+                                                  /dens_obs_noise)
+    return fcx
 
 ################################ M2M OPTIMIZATION #############################
 def parse_data_dict(data_dicts):
@@ -374,7 +380,9 @@ def fit_m2m(w_init,z_init,vz_init,
             zsun_out[ii]= zsun_m2m
         # then xnm
         if fit_xnm and xcounter == skipxnm:
-            dxnm = eps[1+fit_zsun+fit_omega]*step*fcxnm
+            # assume single population and use fcxnm[0] only
+            dxnm = eps[1+fit_zsun+fit_omega]*step*fcxnm[0]
+            # print(' xnm_m2m, dxnm=',xnm_m2m,dxnm)
             max_dxnm = xnm_m2m/10.0
             if numpy.fabs(dxnm) > max_dxnm:
                 dxnm = max_dxnm*numpy.sign(dxnm)
@@ -384,6 +392,7 @@ def fit_m2m(w_init,z_init,vz_init,
         # then omega (skipped in the first step, so undeclared vars okay)
         if fit_omega and ocounter == skipomega:
             domega= eps[1+fit_zsun]*step*fco
+            # print(' omega_m2m, dxnm=',omega_m2m,domega)
             # max_domega= delta_omega/30.
             max_domega= omega_m2m/10.0
             if numpy.fabs(domega) > max_domega:
