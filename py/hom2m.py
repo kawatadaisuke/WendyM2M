@@ -184,6 +184,7 @@ def force_of_change_density_weights(w_m2m,zsun_m2m,z_m2m,vz_m2m,
     for jj,zo in enumerate(z_obs):
         if calc_Wij:
             Wij[jj]= kernel(numpy.fabs(zo-z_m2m+zsun_m2m),h_m2m)
+        # print(' in foc jj, dens=',jj,numpy.nansum(w_m2m*Wij[jj]))
         delta_m2m_new[jj]= (
           numpy.nansum(xnm_m2m*w_m2m*Wij[jj])-dens_obs[jj])/dens_obs_noise[jj]
     if delta_m2m is None: delta_m2m= delta_m2m_new

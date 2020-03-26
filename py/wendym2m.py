@@ -176,7 +176,6 @@ def force_of_change_xnm(w_m2m,zsun_m2m,z_m2m,vz_m2m,
     # dens_obs_noise = data_dicts['type' == 'dens']['unc']
     fcx= numpy.zeros(len(w_m2m[0,:]))
     for ii,data_dict in enumerate(data_dicts):
-        print(' ii data_dict',ii,data_dict)
         if data_dict['type'].lower() == 'dens':
             z_obs = data_dict['zobs']
             dens_obs_noise = data_dict['unc']
