@@ -375,7 +375,7 @@ fit_xnm = True
 prior= 'entropy'
 use_v2=True
 print('skipomega,skipxnm =', skipomega, skipxnm)
-print(' ft omega, xnm =', fit_omega, fit_xnm)
+print(' fit omega, xnm =', fit_omega, fit_xnm)
 print(' smooth, st96smooth, prior, use_v2=',smooth, st96smooth, prior, use_v2)
 print(' mu, h_m2m=', mu, h_m2m)
 

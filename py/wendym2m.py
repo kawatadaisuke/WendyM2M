@@ -138,10 +138,13 @@ def force_of_change_omega(w_m2m,zsun_m2m,omega_m2m,
                           step,data_dicts,
                           delta_m2m,
                           h_m2m=0.02,kernel=hom2m.epanechnikov_kernel,
-                          delta_omega=0.3, xnm_m2m=1.0):
+                          delta_omega_frac=0.1, xnm_m2m=1.0):
     """Compute the force of change by direct finite difference 
     of the objective function"""
     mass = numpy.sum(w_m2m, axis=1)
+    # delta omega to evaluate the gradient
+    delta_omega = omega_m2m*delta_omega_frac
+    # difference in dz and dvz due to the different omega
     dz, dvz = zvzdiff(
       z_prev, vz_prev, mass, omega_m2m, omega_m2m+delta_omega, step)
 
@@ -181,6 +184,7 @@ def force_of_change_xnm(w_m2m,zsun_m2m,z_m2m,vz_m2m,
     for jj,zo in enumerate(z_obs):
         Wij[jj] = kernel(numpy.fabs(zo-z_m2m+zsun_m2m), h_m2m)
         mdens_m2m[jj] = numpy.nansum(w_m2m*Wij[jj])
+    # print(' in xnm wij, w_m2m, mdens_m2m=',Wij,w_m2m,mdens_m2m)
 
     return (-numpy.nansum(mdens_m2m*delta_m2m[0]/dens_obs_noise))
 
@@ -217,7 +221,7 @@ def fit_m2m(w_init,z_init,vz_init,
             output_wevolution=False,
             output_zvzevolution = False, 
             fit_zsun=False,fit_omega=False,
-            skipomega=10,delta_omega=0.3,
+            skipomega=10,delta_omega_frac=0.1,
             number_density=False, xnm_m2m=1.0, skipxnm=10, fit_xnm=False
             ):
     """
@@ -241,7 +245,7 @@ def fit_m2m(w_init,z_init,vz_init,
        fit_zsun= (False) if True, also optimize zsun
        fit_omega= (False) if True, also optimize omega
        skipomega= only update omega every skipomega steps
-       delta_omega= (0.3) difference in omega to use to compute derivative of objective function wrt omega
+       delta_omega_frac= (0.1) fractional difference in omega to use to compute derivative of objective function wrt omega
        kernel= a smoothing kernel
        kernel_deriv= the derivative of the smoothing kernel
        h_m2m= kernel size parameter for computing the observables
@@ -332,9 +336,20 @@ def fit_m2m(w_init,z_init,vz_init,
                                   h_m2m=h_m2m)
     fcxnm = 0.0
     if fit_xnm:
-        fcxnm = force_of_change_xnm(w_init, zsun_m2m, z_init, vz_init,
+        fcxnm = force_of_change_xnm(w_out, zsun_m2m, z_init, vz_init,
                                     data_dicts, delta_m2m_new, h_m2m=h_m2m,
                                     kernel=kernel, xnm_m2m=xnm_m2m)
+    fco = 0.0
+    # Rewind for first step
+    mass = numpy.sum(w_out, axis=1)
+    z_prev, vz_prev = rewind_zvz(z_init, vz_init, mass, omega_m2m, step)
+    if fit_omega:
+        fco = force_of_change_omega(w_out, zsun_m2m, omega_m2m, z_init,
+                                    vz_init, z_prev, vz_prev, step,
+                                    data_dicts, delta_m2m_new, h_m2m=h_m2m,
+                                    kernel=kernel,
+                                    delta_omega_frac=delta_omega_frac,
+                                    xnm_m2m=xnm_m2m)
     if not smooth is None:
         delta_m2m= delta_m2m_new
     else:
@@ -342,11 +357,11 @@ def fit_m2m(w_init,z_init,vz_init,
     if not smooth is None and not st96smooth:
         Q= [d**2 for d in delta_m2m**2.]
     # setup skipomega omega counter and prev. (z,vz) for F(omega)
-    xcounter= skipxnm-1 # Causes F(Xnm) to be computed in the 1st step    
-    ocounter= skipomega-1 # Causes F(omega) to be computed in the 1st step
-    # Rewind for first step
-    mass = numpy.sum(w_out, axis=1)
-    z_prev, vz_prev = rewind_zvz(z_init, vz_init, mass, omega_m2m, step)
+    # xcounter= skipxnm-1 # Causes F(Xnm) to be computed in the 1st step    
+    # ocounter= skipomega-1 # Causes F(omega) to be computed in the 1st step
+    # no update for omega or xnm at the first step. 
+    xcounter = 0
+    ocounter = 0
     z_m2m, vz_m2m= z_init, vz_init
     for ii in range(nstep):
         # Update weights first
@@ -368,7 +383,7 @@ def fit_m2m(w_init,z_init,vz_init,
             xcounter = 0
         # then omega (skipped in the first step, so undeclared vars okay)
         if fit_omega and ocounter == skipomega:
-            domega= eps[1+fit_zsun]*step*skipomega*fco
+            domega= eps[1+fit_zsun]*step*fco
             # max_domega= delta_omega/30.
             max_domega= omega_m2m/10.0
             if numpy.fabs(domega) > max_domega:
@@ -441,15 +456,17 @@ def fit_m2m(w_init,z_init,vz_init,
                 if not fit_zsun and (smooth is None or not st96smooth):
                     tdelta_m2m= delta_m2m_new
                     # tdeltav2_m2m= deltav2_m2m_new
+                # use step to evaluate gradient of omega
                 fco_new= force_of_change_omega(w_out,zsun_m2m,omega_m2m,
                                                z_m2m,vz_m2m,z_prev,vz_prev,
-                                               step*skipomega,
+                                               step,
                                                data_dicts, tdelta_m2m,
                                                h_m2m=h_m2m,kernel=kernel,
-                                               delta_omega=delta_omega,
+                                               delta_omega_frac=delta_omega_frac,
                                                xnm_m2m=xnm_m2m)
-                z_prev= copy.copy(z_m2m)
-                vz_prev= copy.copy(vz_m2m)
+            # store previous position and velocity every step.
+            z_prev= copy.copy(z_m2m)
+            vz_prev= copy.copy(vz_m2m)
         # Increment smoothing
         if not smooth is None and st96smooth:
             delta_m2m= [d+step*smooth*(dn-d) 
@@ -467,7 +484,7 @@ def fit_m2m(w_init,z_init,vz_init,
             if fit_xnm and xcounter == skipxnm:
                 fcxnm += step*smooth*(fcxnm-fcxnm_new)
             if fit_omega and ocounter == skipomega:
-                fco+= step*skipomega*smooth*(fco_new-fco)
+                fco+= step*smooth*(fco_new-fco)
         else:
             fcw= fcw_new
             if fit_zsun: fcz= fcz_new
