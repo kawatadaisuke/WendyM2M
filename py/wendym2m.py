@@ -145,23 +145,49 @@ def force_of_change_omega(w_m2m,zsun_m2m,omega_m2m,
     # delta omega to evaluate the gradient
     delta_omega = omega_m2m*delta_omega_frac
     # difference in dz and dvz due to the different omega
-    dz, dvz = zvzdiff(
-      z_prev, vz_prev, mass, omega_m2m, omega_m2m+delta_omega, step)
+    # dz, dvz = zvzdiff(
+    #  z_prev, vz_prev, mass, omega_m2m, omega_m2m+delta_omega, step)
 
-    fcw, delta_m2m_do = force_of_change_weights(\
-        w_m2m,zsun_m2m,z_m2m+dz,vz_m2m+dvz,
+    # fcw, delta_m2m_do = force_of_change_weights(\
+    #    w_m2m,zsun_m2m,z_m2m+dz,vz_m2m+dvz,
+    #    data_dicts,
+    #    'entropy',0.,1., # weights prior doesn't matter, so set to zero
+    #    h_m2m=h_m2m,kernel=kernel,
+    #    delta_m2m=delta_m2m, xnm_m2m=xnm_m2m)
+
+    # return -numpy.nansum(\
+    #    delta_m2m[0]*(delta_m2m_do[0]-delta_m2m[0])
+    #    +delta_m2m[1]*(delta_m2m_do[1]-delta_m2m[1]))\
+    #    /delta_omega
+
+    # more directly computing derivative, with no mass limit
+    omega1 = omega_m2m
+    omega2 = omega_m2m+delta_omega
+    # integrate with wendy with omega1
+    g1 = wendypy.nbody(z_prev, vz_prev, mass, step, omega=omega1, \
+                       approx=True, nleap=1)
+    z_next1, vz_next1 = next(g1)
+    # evaluate delta
+    fcw, delta_m2m_do1 = force_of_change_weights(\
+        w_m2m,zsun_m2m,z_next1,vz_next1,
         data_dicts,
         'entropy',0.,1., # weights prior doesn't matter, so set to zero
         h_m2m=h_m2m,kernel=kernel,
         delta_m2m=delta_m2m, xnm_m2m=xnm_m2m)
-#    return -numpy.nansum(\
-#        delta_m2m*(delta_m2m_do-delta_m2m)/dens_obs_noise
-#        +deltav2_m2m*(deltav2_m2m_do-deltav2_m2m)/densv2_obs_noise)\
-#        /delta_omega
+    # integrate with omega2
+    g2 = wendypy.nbody(z_prev, vz_prev, mass, step, omega=omega2, \
+                       approx=True, nleap=1)
+    z_next2, vz_next2 = next(g2)
+    fcw, delta_m2m_do2 = force_of_change_weights(\
+        w_m2m,zsun_m2m,z_next2,vz_next2,
+        data_dicts,
+        'entropy',0.,1., # weights prior doesn't matter, so set to zero
+        h_m2m=h_m2m,kernel=kernel,
+        delta_m2m=delta_m2m, xnm_m2m=xnm_m2m)
 
     return -numpy.nansum(\
-        delta_m2m[0]*(delta_m2m_do[0]-delta_m2m[0])
-        +delta_m2m[1]*(delta_m2m_do[1]-delta_m2m[1]))\
+        delta_m2m_do1[0]*(delta_m2m_do2[0]-delta_m2m_do1[0])
+        +delta_m2m_do1[1]*(delta_m2m_do2[1]-delta_m2m_do2[1]))\
         /delta_omega
 
 # Xnm
@@ -391,7 +417,7 @@ def fit_m2m(w_init,z_init,vz_init,
         # then omega (skipped in the first step, so undeclared vars okay)
         if fit_omega and ocounter == skipomega:
             domega= eps[1+fit_zsun]*step*fco
-            # print(' omega_m2m, dxnm=',omega_m2m,domega)
+            # print(' omega_m2m, dom=',omega_m2m,domega, numpy.sum(delta_m2m_new, axis=1))
             # max_domega= delta_omega/30.
             max_domega= omega_m2m/10.0
             if numpy.fabs(domega) > max_domega:

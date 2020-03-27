@@ -55,7 +55,7 @@ print(' Add Perturbation = ', Add_perturbation)
 ### plot range
 zmin = -1.1
 zmax = 1.1
-densmin = 0.1
+densmin = 0.01
 densmax = 10.0
 v2min = 0.0
 v2max = 800.0
@@ -89,10 +89,12 @@ print(' time step set ', dttdyn,' x tdyn')
 
 ##### generate a mock data
 ##### mock data parameters
-n_init = 100000
-sigma_true = 17.5 # Velocity dispersion in the disc km/s
+n_init = 4000
+# sigma_true = 17.5 # Velocity dispersion in the disc km/s
+sigma_true = 15.0 # Velocity dispersion in the disc km/s
 totmass_true = 1200.0 # Surface density of the disc (1200 ~ 44 Msun pc^-2)
-omegadm_true = 30.4 # external potential (30.4 ~ 0.017 Msun/pc^3)
+# omegadm_true = 30.4 # external potential (30.4 ~ 0.017 Msun/pc^3)
+omegadm_true = 60.0 # external potential (30.4 ~ 0.017 Msun/pc^3)
 zsun_true= 0.0  #  The position of the Sun from the disk mid-plane (kpc)
 vzsun_true= 0.0  # The Sun' vertical motion. 
 xnm_true = 0.002  #  Xnm
@@ -226,8 +228,10 @@ else:
 save_pickles(savefilename, m_mock, z_mock, vz_mock, omegadm_true)
 
 # The z positions of observation
-z_obs= numpy.array([0.15, 0.25, 0.35, 0.45, 0.55, 0.65,
+z_obs= numpy.array([0.0, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65,
                     -0.15, -0.25, -0.35, -0.45, -0.55, -0.65])
+# z_obs= numpy.array([0.15, 0.35, 0.55, 0.75, 0.95, 1.05,
+#                     -0.15, -0.35, -0.55, -0.75, -0.95, -1.05])
 h_obs= h_def
 # density
 dens_obs= xnm_true*hom2m.compute_dens(z_mock,zsun_true,z_obs,h_obs,w=m_mock)
@@ -244,8 +248,9 @@ for i in range(nbs_sam):
 dens_obs = numpy.mean(dens_obs_sam, axis=0)
 dens_obs_noise = numpy.std(dens_obs_sam, axis=0)
 print('dens=',dens_obs)
-print('dens=',dens_obs_noise)
-dens_obs+= numpy.random.normal(size=dens_obs.shape)*dens_obs_noise
+print('dens noise=',dens_obs_noise)
+# no additional noise
+# dens_obs+= numpy.random.normal(size=dens_obs.shape)*dens_obs_noise
 
 # v^2
 v2_obs= hom2m.compute_v2(z_mock,vz_mock,zsun_true,z_obs,h_obs)
@@ -265,8 +270,9 @@ v2_obs = numpy.mean(v2_obs_sam, axis=0)
 v2_obs_noise = numpy.std(v2_obs_sam, axis=0)
 print('Bootstrap with a single output')
 print('v2_obs=', v2_obs)
-print('v2_obs_moise=',v2_obs_noise)
-v2_obs+= numpy.random.normal(size=v2_obs.shape)*v2_obs_noise
+print('v2_obs_noise=',v2_obs_noise)
+# no additional noise
+# v2_obs+= numpy.random.normal(size=v2_obs.shape)*v2_obs_noise
 
 # <v>, but not used for constraints.
 # We only observe the v2 at a few z (same as before)
@@ -287,8 +293,8 @@ v_obs = numpy.mean(v_obs_sam, axis=0)
 v_obs_noise = numpy.std(v_obs_sam, axis=0)
 print('Bootstrap with a single output')
 print('v_obs=', v_obs)
-print('v_obs_moise=',v_obs_noise)
-v_obs+= numpy.random.normal(size=v_obs.shape)*v_obs_noise
+print('v_obs_noise=',v_obs_noise)
+# v_obs+= numpy.random.normal(size=v_obs.shape)*v_obs_noise
 
 ### setting data_dicts as the target data for M2M modelling
 dens_data= {'type':'dens','pops':0,'zobs':z_obs,'obs':dens_obs,'unc':dens_obs_noise,'zrange':1.}
@@ -305,9 +311,9 @@ print(' Number of M2M model particles =', n_m2m)
 sigma_init= sigma_true*1.2
 h_m2m= h_def
 # set a guess
-xnm_m2m = xnm_true*1.5
+xnm_m2m = xnm_true
 # total surface_mass density  Munit/Lunit(kpc)^2
-totmass_init = totmass_true*1.5
+totmass_init = totmass_true*1.2
 print(' initial mass density (Msun/pc^2) =', \
       totmass_init*munit_msun/(lunit_pc**2))
 zh_init = sigma_init**2./totmass_init  
@@ -354,27 +360,33 @@ for ii in range(nt):
     if ii < nstep_omega:
         omega_ii += domega
 print('Final omega and omega_dm =', omega_ii, omegadm_true)
+# use the condition after the addition of the DM potential
+z_m2m = tz
+vz_m2m = tvz
 
 ### Set M2M parameters
 step= dttdyn*tdyn
-nstep= 10000
+nstep= 5000
 # eps weight, omega, xnm
 # best with 0.2*rho/sqrt(N) uncertainty for density
 # eps = [10.0**1.0, 10.0**2.5, 10.0**-9.5]
-eps = [10.0**0.0, 10.0**2.5, 10.0**-10.5]
+eps = [10.0**2.0, 10.0**8.0, 10.0**-7.0]
 print('M2M parameters: nstep, eps =', nstep, eps)
 smooth= None #1./step/100.
 st96smooth= False
-mu= 0.
+mu= 0.0
 h_m2m= h_def
 zsun_m2m= zsun_true
 fit_omega = True
-skipomega= 10
-skipxnm = 100
+skipomega= 100
+skipxnm = nstep+10
+# delta omega to evaluate derivative of omega
+delta_omega_frac = 0.1
 fit_xnm = True
 prior= 'entropy'
 use_v2=True
 print('skipomega,skipxnm =', skipomega, skipxnm)
+print('delta omega frac =', delta_omega_frac)
 print(' fit omega, xnm =', fit_omega, fit_xnm)
 print(' smooth, st96smooth, prior, use_v2=',smooth, st96smooth, prior, use_v2)
 print(' mu, h_m2m=', mu, h_m2m)
@@ -385,6 +397,7 @@ w_out,omega_out,xnm_out,z_m2m,vz_m2m,Q,wevol,windx= \
                      nstep=nstep,step=step,mu=mu,eps=eps,h_m2m=h_m2m,prior=prior,
                      smooth=smooth,st96smooth=st96smooth,output_wevolution=10,
                      fit_omega=fit_omega,skipomega=skipomega,
+                     delta_omega_frac=0.3,
                      number_density=True, xnm_m2m=xnm_m2m, fit_xnm=fit_xnm, skipxnm=skipxnm)
 w_out= w_out[:,0]
 
@@ -455,7 +468,7 @@ plt.errorbar(z_obs,v_obs,yerr=v_obs_noise,marker='None',ls='none',color=sns.colo
 plt.subplot(2,3,3)
 bovy_plot.bovy_plot(numpy.linspace(0.,1.,nstep)*nstep*step,xnm_out,'-',
                     color=sns.color_palette()[0],
-                    yrange=[0.,xnm_m2m*2.0],
+                    yrange=[0.,xnm_true*2.0],
                     semilogx=True,xlabel=r'$\mathrm{orbits}$',ylabel=r'$X_{nm}(t)$',gcf=True)
 plt.axhline(xnm_true,ls='--',color='0.65',lw=2.,zorder=0)
 plt.gca().xaxis.set_major_formatter(FuncFormatter(
